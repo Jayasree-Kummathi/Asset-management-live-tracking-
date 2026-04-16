@@ -1,0 +1,61 @@
+.topbar {
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  flex-shrink: 0;
+}
+
+.topbar-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-date {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.topbar-notif { position: relative; }
+
+.notif-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 2px solid var(--surface);
+}
+/* Topbar.css - Add these styles */
+
+.topbar-logout {
+  transition: all 0.2s ease;
+}
+
+.topbar-logout:hover {
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+}
+
+/* If you want to add a divider between elements */
+.topbar-right > *:not(:last-child) {
+  margin-right: 8px;
+}
+
+/* Optional: Add a subtle separator before logout */
+.topbar-right .topbar-logout {
+  margin-left: 4px;
+}
