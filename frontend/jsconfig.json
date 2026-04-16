@@ -3,7 +3,8 @@
     "target": "es6",
     "module": "commonjs",
     "jsx": "react-jsx",
-    "baseUrl": "src"
+    "baseUrl": "src",
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src"]
 }
