@@ -15,7 +15,7 @@ const { exec, execSync, spawnSync } = require('child_process');
 //  Production HTTPS: 'https://yourdomain.com'      ← valid Let's Encrypt cert
 //  Self-signed    : set ALLOW_SELF_SIGNED = true below
 // ─────────────────────────────────────────────────────────────────────────────
-const SERVER_URL        = 'http://172.16.16.101:5000';
+const SERVER_URL        = 'http://172.16.5.219';
 const ALLOW_SELF_SIGNED = false;   // true only for self-signed/internal HTTPS cert
 const INTERVAL_MINS     = 3;
 const IDLE_THRESHOLD    = 5 * 60;  // seconds

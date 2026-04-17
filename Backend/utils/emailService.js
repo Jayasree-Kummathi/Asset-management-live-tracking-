@@ -168,72 +168,81 @@ const wrap = (hdrColor, title, sub, body, acceptLink = '') => `<!DOCTYPE html>
 exports.sendAllocationEmail = async (p) => {
   const accessories = (p.accessories || []).join(', ') || 'None';
   const cc = buildCC({ performedByEmail: p.allocatedByEmail, extraCCs: p.extraCCs });
-
+ 
   let agreementBuffer = null;
   try {
     agreementBuffer = await generateAgreement({
-      empName: p.empName,
-      empId: p.empId,
-      department: p.department,
+      empName: p.empName, empId: p.empId, department: p.department,
       position: p.position || p.designation || p.role || p.department || 'Employee',
-      mobileNo: p.mobileNo || '',
-      assetId: p.assetId,
-      serial: p.serial,
-      brand: p.brand,
-      model: p.model,
-      config: p.config || '',
-      accessories: p.accessories || [],
-      allocationDate: p.allocationDate,
+      mobileNo: p.mobileNo || '', assetId: p.assetId, serial: p.serial,
+      brand: p.brand, model: p.model, config: p.config || '',
+      accessories: p.accessories || [], allocationDate: p.allocationDate,
       managerName: p.managerName || 'Vasudevan D K',
       managerEmail: p.managerEmail || 'Vasudevan.kannan@mindteck.com',
       contactPerson: p.contactPerson || 'Vasudevan D K',
       contactEmail: p.contactEmail || 'Vasudevan.kannan@mindteck.com',
     });
-  } catch (e) { 
-    console.error('Agreement gen failed:', e.message); 
-  }
-
+  } catch (e) { console.error('Agreement gen failed:', e.message); }
+ 
   const photoAttachments = getPhotoAttachment(p.photoUrl);
   const photoHTML = photoAttachments.length > 0
     ? `<div class="photo-wrap"><img src="cid:employee_photo" alt="${p.empName}"/><span>Employee Photo</span></div>`
     : '';
-
+ 
   const deliveryHTML = p.deliveryMethod === 'courier'
     ? `<p class="sec-title">Delivery Information</p>
        <table class="dtable">
          <tr><td class="k">Delivery Method</td><td class="v"><span class="badge-b">Courier</span></td></tr>
-          <tr><td class="k">Delivery Address</td><td class="v" style="white-space:pre-line">${p.deliveryAddress || '—'}</td></tr>
-        </table>`
+         <tr><td class="k">Delivery Address</td><td class="v" style="white-space:pre-line">${p.deliveryAddress || '—'}</td></tr>
+       </table>`
     : `<p class="sec-title">Delivery Information</p>
        <table class="dtable">
          <tr><td class="k">Delivery Method</td><td class="v"><span class="badge-g">Hand Delivery</span></td></tr>
        </table>`;
-
-  // Calculate deadline (10 days from allocation date)
+ 
   const deadlineDate = new Date(p.allocationDate || Date.now());
   deadlineDate.setDate(deadlineDate.getDate() + 10);
-  const deadlineStr = deadlineDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-
+  const deadlineStr = deadlineDate.toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' });
+ 
+  // ✅ QR code section in email body
+  const qrSection = p.qrCodeBuffer ? `
+    <p class="sec-title">📱 Asset QR Code</p>
+    <div style="text-align:center;padding:20px;background:#f8fafc;border-radius:12px;
+                border:2px dashed #e2e8f0;margin-bottom:18px">
+      <img src="cid:asset_qr" alt="Asset QR Code"
+           style="width:180px;height:180px;display:block;margin:0 auto;
+                  border:4px solid #1d3461;border-radius:8px;padding:4px;background:#fff"/>
+      <div style="font-size:13px;font-weight:600;color:#1e293b;margin-top:12px">
+        Scan to view your asset details
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px">
+        Contains all laptop details, serial number, and allocation information
+      </div>
+      <a href="${p.qrCardUrl || '#'}" style="display:inline-block;margin-top:10px;font-size:11px;
+         color:#1d5c3c;text-decoration:underline;font-family:monospace">${p.qrCardUrl || ''}</a>
+    </div>` : '';
+ 
   const body = `
     ${photoHTML}
     <p class="greeting">Dear ${p.empName},</p>
     <p class="intro">A laptop has been allocated to you. Please find the complete details below.
     The <strong>Employee Laptop Agreement</strong> is attached — please sign and return it to
-    <a href="mailto:laptop.consent@mindteck.com">laptop.consent@mindteck.com</a> 
+    <a href="mailto:laptop.consent@mindteck.com">laptop.consent@mindteck.com</a>
     <strong>within 10 days (by ${deadlineStr})</strong>.</p>
-
+ 
+    ${qrSection}
+ 
     <p class="sec-title">Employee Details</p>
     <table class="dtable">
       <tr><td class="k">Full Name</td><td class="v">${p.empName}</td></tr>
       <tr><td class="k">Employee ID</td><td class="v">${p.empId}</td></tr>
       <tr><td class="k">Department</td><td class="v">${p.department || '—'}</td></tr>
-      <tr><td class="k">Position / Role</td><td class="v">${p.position || p.designation || p.role || '—'}</td></tr>
       <tr><td class="k">Mobile Number</td><td class="v">${p.mobileNo || '—'}</td></tr>
       <tr><td class="k">Work Email</td><td class="v">${p.empEmail}</td></tr>
       ${p.personalEmail ? `<tr><td class="k">Personal Email</td><td class="v">${p.personalEmail}</td></tr>` : ''}
       <tr><td class="k">Project / Client</td><td class="v">${p.project || '—'} / ${p.client || '—'}</td></tr>
     </table>
-
+ 
     <p class="sec-title">Laptop Details</p>
     <table class="dtable">
       <tr><td class="k">Asset Number</td><td class="vm">${p.assetId}</td></tr>
@@ -245,37 +254,40 @@ exports.sendAllocationEmail = async (p) => {
       <tr><td class="k">Allocated By</td><td class="v">${p.allocatedBy}</td></tr>
       <tr><td class="k">Status</td><td class="v"><span class="badge-g">Active</span></td></tr>
     </table>
-
+ 
     ${deliveryHTML}
-
+ 
     <div class="note">
       <strong>⚠️ Important Notice:</strong>
-      <ul style="margin: 8px 0 0 20px; padding: 0;">
+      <ul style="margin:8px 0 0 20px;padding:0">
         <li>Please review and sign the attached <strong>Employee Laptop Agreement</strong></li>
-        <li>Return the signed agreement to <strong>laptop.consent@mindteck.com</strong> within <strong>10 days</strong> (by ${deadlineStr})</li>
-        <li>If we do not receive your signed agreement by ${deadlineStr}, the agreement will be deemed as accepted</li>
-        <li>Take good care of the laptop and do not attempt to repair or modify the device yourself</li>
-        <li>For any hardware issues, contact IT immediately at <a href="mailto:${process.env.SYSADMIN_EMAIL || 'sysadmin@mindteck.us'}">${process.env.SYSADMIN_EMAIL || 'sysadmin@mindteck.us'}</a></li>
+        <li>Return to <strong>laptop.consent@mindteck.com</strong> within 10 days (by ${deadlineStr})</li>
+        <li>If we don't receive your signed agreement by ${deadlineStr}, it will be deemed accepted</li>
+        <li>For hardware issues, contact IT at <a href="mailto:${process.env.SYSADMIN_EMAIL || 'sysadmin@mindteck.us'}">${process.env.SYSADMIN_EMAIL || 'sysadmin@mindteck.us'}</a></li>
       </ul>
-    </div>
-
-    <div class="contact">
-      <strong>For any queries regarding this agreement, please contact:</strong><br/>
-      ${p.managerName || 'Vasudevan D K'} — ${p.managerEmail || 'Vasudevan.kannan@mindteck.com'}
     </div>`;
-
+ 
   const toList = [p.empEmail];
   if (p.personalEmail && p.personalEmail !== p.empEmail) toList.push(p.personalEmail);
-
+ 
   const attachments = [...getLogoAttachment(), ...photoAttachments];
   if (agreementBuffer) {
     attachments.push({
-      filename:    `Laptop_Agreement_${(p.empName || '').replace(/\s+/g, '_')}_${p.assetId}.docx`,
+      filename:    `Laptop_Agreement_${(p.empName || '').replace(/\s+/g,'_')}_${p.assetId}.docx`,
       content:     agreementBuffer,
       contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
   }
-
+  // ✅ Attach QR code image
+  if (p.qrCodeBuffer) {
+    attachments.push({
+      filename:    'asset_qr_code.png',
+      content:     p.qrCodeBuffer,
+      cid:         'asset_qr',
+      contentType: 'image/png',
+    });
+  }
+ 
   await sendMail({
     to:          toList.join(', '),
     cc:          cc.join(', '),
@@ -343,17 +355,31 @@ exports.sendReceiveEmail = async (p) => {
 // ════════════════════════════════════════════════════════════════════════════
 exports.sendSwapEmail = async (p) => {
   const cc = buildCC({ performedByEmail: p.swappedByEmail, extraCCs: p.extraCCs });
-
   const photoAttachments = getPhotoAttachment(p.photoUrl);
   const photoHTML = photoAttachments.length > 0
     ? `<div class="photo-wrap"><img src="cid:employee_photo" alt="${p.empName}"/><span>Employee Photo</span></div>`
     : '';
-
+ 
+  // ✅ QR code for the NEW laptop
+  const qrSection = p.qrCodeBuffer ? `
+    <p class="sec-title">📱 New Laptop QR Code</p>
+    <div style="text-align:center;padding:20px;background:#f8fafc;border-radius:12px;
+                border:2px dashed #e2e8f0;margin-bottom:18px">
+      <img src="cid:asset_qr" alt="Asset QR Code"
+           style="width:160px;height:160px;display:block;margin:0 auto;
+                  border:4px solid #1d3461;border-radius:8px;padding:4px;background:#fff"/>
+      <div style="font-size:12px;color:#64748b;margin-top:10px">Scan to view your new asset details</div>
+      <a href="${p.qrCardUrl || '#'}" style="display:inline-block;margin-top:6px;font-size:11px;
+         color:#1d5c3c;text-decoration:underline;font-family:monospace">${p.qrCardUrl || ''}</a>
+    </div>` : '';
+ 
   const body = `
     ${photoHTML}
     <p class="greeting">Dear ${p.empName},</p>
     <p class="intro">Your laptop has been swapped. Complete details of the exchange are below.</p>
-
+ 
+    ${qrSection}
+ 
     <p class="sec-title">Employee Details</p>
     <table class="dtable">
       <tr><td class="k">Full Name</td><td class="v">${p.empName}</td></tr>
@@ -362,7 +388,7 @@ exports.sendSwapEmail = async (p) => {
       <tr><td class="k">Department</td><td class="v">${p.department||'—'}</td></tr>
       <tr><td class="k">Project</td><td class="v">${p.project||'—'}</td></tr>
     </table>
-
+ 
     <p class="sec-title">Swap Details</p>
     <table class="htable">
       <tr>
@@ -391,16 +417,25 @@ exports.sendSwapEmail = async (p) => {
         <td style="font-family:monospace">${p.newSerial||'—'}</td>
       </tr>
     </table>
-
+ 
     <table class="dtable">
       <tr><td class="k">Swap Reason</td><td class="v">${p.issueType}</td></tr>
       <tr><td class="k">Description</td><td class="v">${p.issueDescription||'—'}</td></tr>
       <tr><td class="k">Swap Date</td><td class="v">${p.swapDate}</td></tr>
       <tr><td class="k">Processed By</td><td class="v">${p.swappedBy}</td></tr>
     </table>`;
-
+ 
   const attachments = [...getLogoAttachment(), ...photoAttachments];
-
+  // ✅ Attach QR code
+  if (p.qrCodeBuffer) {
+    attachments.push({
+      filename:    'new_asset_qr_code.png',
+      content:     p.qrCodeBuffer,
+      cid:         'asset_qr',
+      contentType: 'image/png',
+    });
+  }
+ 
   await sendMail({
     to:          p.empEmail,
     cc:          cc.join(', '),

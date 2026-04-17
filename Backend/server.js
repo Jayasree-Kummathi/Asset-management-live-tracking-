@@ -50,6 +50,7 @@ app.use('/api/accessories',    require('./routes/accessories'));
 app.use('/api/network-assets', require('./routes/Networkassets'));
 app.use('/api/agent',          require('./routes/agentRoute')); // ← agent + software routes
 app.use('/api',                teamMembersRoutes);
+app.use('/card', require('./routes/assetCardRoute'));
 
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
