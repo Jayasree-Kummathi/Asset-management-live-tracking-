@@ -21,6 +21,7 @@ const adminOnly = (req, res, next) => {
 // ── Public — agent EXE calls these (no JWT, uses device_key) ─────────────────
 router.post('/register',     agent.registerDevice);
 router.post('/report',       agent.receiveReport);
+router.post('/activity', agent.receiveActivity);
 router.get('/verify-token',  agent.verifyInstallToken);  // one-time install token
 
 // ── Agent polling — software push (no JWT, device_key auth inside controller) ─

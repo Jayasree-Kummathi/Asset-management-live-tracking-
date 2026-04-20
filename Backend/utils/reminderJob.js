@@ -1,17 +1,19 @@
 /**
  * reminderJob.js
- * 
+ *
  * Daily scheduled job that:
- * 1. Finds all PENDING acceptance tokens past their due date (10 days after allocation)
- * 2. Sends reminder emails — skips already accepted/damaged tokens
+ * 1. Finds all PENDING acceptance tokens (regardless of expiry)
+ * 2. Auto-extends token expiry before sending so the link always works
  * 3. Sends escalating urgency: Reminder → Second Reminder → Final Notice
- * 4. Never sends to accepted/damaged tokens
- * 
+ * 4. Sends every 2 days (not 7) for better response rate
+ * 5. Stops automatically once employee accepts or reports damage
+ * 6. Never sends if laptop is no longer allocated (returned/scrapped)
+ *
  * Place this file in: Backend/utils/reminderJob.js
- * Start it in: Backend/server.js  →  require('./utils/reminderJob').startReminderJob()
+ * Start it in: Backend/server.js → require('./utils/reminderJob').startReminderJob()
  */
 
-const cron   = require('node-cron');
+const cron      = require('node-cron');
 const { query } = require('../config/db');
 const { sendAcceptanceReminderEmail } = require('./emailService');
 
@@ -22,10 +24,11 @@ const runReminderCheck = async () => {
   console.log('🔔 [Reminder Job] Running acceptance reminder check…');
 
   try {
-    // Find all PENDING tokens where:
+    // ✅ Find all PENDING tokens where:
     // - status is still 'pending' (not accepted / damaged)
-    // - allocation was made more than 10 days ago (past original deadline)
-    // - laptop is still allocated (not returned/scrapped)
+    // - allocation is still Active (not returned/scrapped)
+    // - token was created more than 10 days ago (past original deadline)
+    // - either never reminded, or last reminder was 2+ days ago
     const result = await query(
       `SELECT
          t.id,
@@ -52,7 +55,7 @@ const runReminderCheck = async () => {
          AND t.created_at < NOW() - INTERVAL '10 days'
          AND (
            t.last_reminder_at IS NULL
-           OR t.last_reminder_at < NOW() - INTERVAL '7 days'
+           OR t.last_reminder_at < NOW() - INTERVAL '2 days'
          )
        ORDER BY t.created_at ASC`
     );
@@ -66,20 +69,32 @@ const runReminderCheck = async () => {
 
     for (const row of result.rows) {
       try {
-        // Calculate how many days overdue
-        const createdAt   = new Date(row.created_at);
-        const daysElapsed = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-        const daysOverdue = Math.max(0, daysElapsed - 10);
+        // Calculate days overdue
+        const createdAt     = new Date(row.created_at);
+        const daysElapsed   = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+        const daysOverdue   = Math.max(0, daysElapsed - 10);
         const reminderCount = (row.reminder_count || 0) + 1;
 
         // Build acceptance link
-        const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const baseUrl       = process.env.FRONTEND_URL || 'http://localhost:3000';
         const acceptanceLink = `${baseUrl}/accept/${row.token}`;
 
         // Format allocation date
         const allocDate = row.allocation_date
-          ? new Date(row.allocation_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+          ? new Date(row.allocation_date).toLocaleDateString('en-IN', {
+              day: 'numeric', month: 'long', year: 'numeric',
+            })
           : '—';
+
+        // ✅ CRITICAL FIX: Always extend token expiry BEFORE sending reminder
+        // This ensures the link in the email is always valid when employee clicks it
+        await query(
+          `UPDATE acceptance_tokens
+           SET expires_at = NOW() + INTERVAL '5 days'
+           WHERE id = $1 AND status = 'pending'`,
+          [row.id]
+        );
+        console.log(`🔔 [Reminder Job] Token extended 5 days for ${row.emp_name} (${row.asset_id})`);
 
         console.log(`🔔 Sending reminder #${reminderCount} to ${row.emp_email} for ${row.asset_id} (${daysOverdue} days overdue)`);
 
@@ -87,24 +102,25 @@ const runReminderCheck = async () => {
           empName:        row.emp_name,
           empEmail:       row.emp_email,
           assetId:        row.asset_id,
-          brand:          row.brand   || '',
-          model:          row.model   || '',
-          serial:         row.serial  || '',
+          brand:          row.brand  || '',
+          model:          row.model  || '',
+          serial:         row.serial || '',
           allocationDate: allocDate,
           acceptanceLink,
           daysOverdue,
         });
 
-        // Update reminder count + last_reminder_at in DB
+        // ✅ Update reminder count + last_reminder_at
         await query(
           `UPDATE acceptance_tokens
-           SET reminder_count    = $1,
-               last_reminder_at  = NOW()
+           SET reminder_count   = $1,
+               last_reminder_at = NOW()
            WHERE id = $2`,
           [reminderCount, row.id]
         );
 
-        console.log(`✅ [Reminder Job] Reminder sent to ${row.emp_email} for ${row.asset_id}`);
+        console.log(`✅ [Reminder Job] Reminder #${reminderCount} sent to ${row.emp_email} for ${row.asset_id}`);
+
       } catch (err) {
         console.error(`❌ [Reminder Job] Failed for ${row.emp_email}:`, err.message);
       }
@@ -117,19 +133,18 @@ const runReminderCheck = async () => {
 };
 
 /**
- * Start the cron job — runs every day at 9:00 AM server time
+ * Start the cron job — runs every day at 9:00 AM IST
  */
 const startReminderJob = () => {
-  console.log('🔔 [Reminder Job] Scheduled — runs daily at 9:00 AM');
+  console.log('🔔 [Reminder Job] Scheduled — runs daily at 9:00 AM IST');
 
-  // Run daily at 9:00 AM
   cron.schedule('0 9 * * *', () => {
     runReminderCheck();
   }, {
-    timezone: 'Asia/Kolkata', // IST — change to your server timezone
+    timezone: 'Asia/Kolkata',
   });
 
-  // Also run once on startup (after 10 seconds delay to let DB connect)
+  // Also run once on startup after 10 seconds (let DB connect first)
   setTimeout(() => {
     runReminderCheck();
   }, 10000);

@@ -552,3 +552,64 @@ exports.verifyInstallToken = asyncHandler(async (req, res) => {
 
   res.json({ valid: true, message: 'Token accepted — agent authorized to install' });
 });
+
+exports.receiveActivity = asyncHandler(async (req, res) => {
+  const {
+    device_key, asset_id,
+    is_active, idle_seconds,
+    today_active_minutes, total_active_minutes, active_minutes,
+  } = req.body;
+ 
+  if (!device_key)
+    return res.status(400).json({ success: false, message: 'device_key required' });
+ 
+  // Verify device
+  const reg = await query(
+    `SELECT asset_id, is_enabled FROM agent_registrations WHERE device_key = $1`,
+    [device_key]
+  );
+  if (!reg.rows.length)
+    return res.status(401).json({ success: false, message: 'Invalid device_key' });
+  if (!reg.rows[0].is_enabled)
+    return res.json({ success: false, disabled: true });
+ 
+  const resolvedAssetId = (reg.rows[0].asset_id || asset_id || '').toUpperCase();
+  if (!resolvedAssetId)
+    return res.json({ success: true, message: 'No asset assigned yet' });
+ 
+  const today = new Date().toISOString().split('T')[0];
+ 
+  // Update active minutes + is_active in asset_locations (the live tracking table)
+  await query(
+    `UPDATE asset_locations
+     SET is_active            = $1,
+         idle_seconds         = $2,
+         today_active_minutes = GREATEST(COALESCE(today_active_minutes, 0), $3),
+         total_active_minutes = GREATEST(COALESCE(total_active_minutes, 0), $4),
+         active_minutes       = GREATEST(COALESCE(active_minutes, 0), $5)
+     WHERE asset_id = $6`,
+    [
+      is_active            ?? false,
+      idle_seconds         ?? 0,
+      today_active_minutes ?? 0,
+      total_active_minutes ?? 0,
+      active_minutes       ?? 0,
+      resolvedAssetId,
+    ]
+  );
+ 
+  // Upsert daily active record — only increases, never decreases
+  await query(
+    `INSERT INTO asset_active_daily (asset_id, date, active_minutes)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (asset_id, date) DO UPDATE
+       SET active_minutes = GREATEST(asset_active_daily.active_minutes, EXCLUDED.active_minutes)`,
+    [resolvedAssetId, today, today_active_minutes ?? 0]
+  );
+ 
+  const label = is_active ? '⌨️  active' : `💤 idle ${Math.floor((idle_seconds || 0) / 60)}m`;
+  console.log(`⌨️  [Activity] ${resolvedAssetId} ${label} today:${today_active_minutes}min`);
+ 
+  res.json({ success: true });
+});
+ 

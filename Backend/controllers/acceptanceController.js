@@ -6,7 +6,6 @@ const asyncHandler = require('../utils/asyncHandler');
 const makeToken = () => crypto.randomBytes(32).toString('hex');
 
 // @route  POST /api/acceptance/generate
-// Called internally after allocation — creates token and returns link
 exports.generateToken = async (allocationDbId, assetId, empName, empEmail) => {
   const token = makeToken();
   await query(
@@ -21,7 +20,6 @@ exports.generateToken = async (allocationDbId, assetId, empName, empEmail) => {
 };
 
 // @route  GET /api/acceptance/:token   — public, no auth
-// Returns allocation + asset details for the acceptance form
 exports.getAcceptanceData = asyncHandler(async (req, res) => {
   const { token } = req.params;
 
@@ -48,31 +46,7 @@ exports.getAcceptanceData = asyncHandler(async (req, res) => {
 
   const row = result.rows[0];
 
-  if (new Date(row.expires_at) < new Date()) {
-    return res.status(410).json({ success: false, message: 'This acceptance link has expired.' });
-  }
-
-  res.json({ success: true, data: row });
-});
-
-// @route  POST /api/acceptance/:token/submit   — public, no auth
-// Employee submits acceptance (no damage) or damage report with images
-exports.submitAcceptance = asyncHandler(async (req, res) => {
-  const { token } = req.params;
-  const { has_damage, damage_desc, damage_images } = req.body;
- 
-  const result = await query(
-    'SELECT id, allocation_id, asset_id, emp_name, emp_email, status FROM acceptance_tokens WHERE token = $1',
-    [token]
-  );
- 
-  if (!result.rows.length) {
-    return res.status(404).json({ success: false, message: 'Invalid link.' });
-  }
- 
-  const row = result.rows[0];
- 
-  // ✅ Already submitted — never process twice, never send more reminders
+  // ✅ If already submitted (accepted/damaged), block access regardless of expiry
   if (row.status !== 'pending') {
     return res.status(400).json({
       success: false,
@@ -81,12 +55,52 @@ exports.submitAcceptance = asyncHandler(async (req, res) => {
         : 'Your damage report has already been submitted. IT team will contact you shortly.',
     });
   }
- 
+
+  // ✅ If pending but expired, auto-extend by 5 days so employee can still respond
+  if (new Date(row.expires_at) < new Date()) {
+    await query(
+      `UPDATE acceptance_tokens
+       SET expires_at = NOW() + INTERVAL '5 days'
+       WHERE token = $1 AND status = 'pending'`,
+      [token]
+    );
+    row.expires_at = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+    console.log(`[Acceptance] Auto-extended token for ${row.emp_name} (${row.asset_id})`);
+  }
+
+  res.json({ success: true, data: row });
+});
+
+// @route  POST /api/acceptance/:token/submit   — public, no auth
+exports.submitAcceptance = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { has_damage, damage_desc, damage_images } = req.body;
+
+  const result = await query(
+    'SELECT id, allocation_id, asset_id, emp_name, emp_email, status FROM acceptance_tokens WHERE token = $1',
+    [token]
+  );
+
+  if (!result.rows.length) {
+    return res.status(404).json({ success: false, message: 'Invalid link.' });
+  }
+
+  const row = result.rows[0];
+
+  // ✅ Already submitted — never process twice
+  if (row.status !== 'pending') {
+    return res.status(400).json({
+      success: false,
+      message: row.status === 'accepted'
+        ? 'You have already confirmed receipt of this laptop. No further action needed.'
+        : 'Your damage report has already been submitted. IT team will contact you shortly.',
+    });
+  }
+
   const newStatus = has_damage ? 'damaged' : 'accepted';
   const images    = Array.isArray(damage_images) ? damage_images : [];
- 
-  // ✅ Mark as accepted/damaged + set expires_at = NOW() so it's fully closed
-  // The reminder job checks status = 'pending', so this naturally stops all reminders
+
+  // ✅ Mark as accepted/damaged + close token immediately
   await query(
     `UPDATE acceptance_tokens
      SET status        = $1,
@@ -94,11 +108,11 @@ exports.submitAcceptance = asyncHandler(async (req, res) => {
          damage_desc   = $3,
          damage_images = $4,
          submitted_at  = NOW(),
-         expires_at    = NOW()   -- ✅ close the token immediately
+         expires_at    = NOW()
      WHERE token = $5`,
     [newStatus, !!has_damage, damage_desc || null, JSON.stringify(images), token]
   );
- 
+
   // Audit log
   await query(
     `INSERT INTO audit_logs (action, category, detail, asset_id, performed_by)
@@ -112,7 +126,7 @@ exports.submitAcceptance = asyncHandler(async (req, res) => {
       row.emp_name,
     ]
   );
- 
+
   res.json({
     success: true,
     message: has_damage
@@ -121,8 +135,8 @@ exports.submitAcceptance = asyncHandler(async (req, res) => {
     status: newStatus,
   });
 });
+
 // @route  GET /api/acceptance   — admin/IT staff only
-// List all acceptance responses
 exports.listAcceptances = asyncHandler(async (req, res) => {
   const { status } = req.query;
   const where = status && status !== 'all' ? `WHERE t.status = '${status}'` : '';
