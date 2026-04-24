@@ -1,17 +1,174 @@
-.inv-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.asset-id { font-family: var(--mono); font-size: 12.5px; color: var(--accent); font-weight: 700; }
+/* ═══════════════════════════════════════════════════════════
+   Inventory.css  — complete file
+   ═══════════════════════════════════════════════════════════ */
 
-/* Modal */
+/* ── Toolbar ── */
+.inv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+/* ── Asset ID chip ── */
+.asset-id {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Brand / Model Breakdown — layout classes
+   (animations live here; component's inline <style> stays lean)
+   ══════════════════════════════════════════════════════════ */
+
+@keyframes bmdSlideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.bmd-card   { margin-bottom: 20px; }
+.bmd-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.bmd-list   { display: flex; flex-direction: column; gap: 8px; }
+
+.bmd-brand-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: bmdSlideIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bmd-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  transition: background 0.15s ease, border-color 0.22s ease, box-shadow 0.15s ease;
+}
+.bmd-brand-row:hover {
+  background: var(--surface2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.bmd-brand-open {
+  background: var(--surface2) !important;
+  border-bottom-color: var(--accent) !important;
+}
+
+.bmd-arrow {
+  flex-shrink: 0;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bmd-brand-label  { flex: 1; display: flex; align-items: baseline; gap: 8px; }
+.bmd-brand-name   { font-weight: 700; font-size: 14px; }
+.bmd-model-count  { font-size: 12px; color: var(--text-muted); }
+
+.bmd-pills { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.bmd-pill  { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.bmd-pill:hover { transform: scale(1.08); box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+
+.bmd-total-badge {
+  flex-shrink: 0;
+  min-width: 32px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--accent);
+  font-family: var(--mono);
+  margin-left: 6px;
+  background: var(--accent-glow, rgba(99,102,241,0.1));
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+@keyframes bmdExpand {
+  from { opacity: 0; max-height: 0;      transform: translateY(-6px); }
+  to   { opacity: 1; max-height: 1200px; transform: translateY(0); }
+}
+.bmd-models-wrap {
+  border-top: 1px solid var(--border);
+  overflow: hidden;
+  animation: bmdExpand 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes bmdModelIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.bmd-model-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px 9px 42px;
+  background: var(--surface);
+  animation: bmdModelIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: background 0.12s ease;
+}
+.bmd-model-row:hover { background: var(--surface2); }
+
+.bmd-model-label { flex: 1; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim); }
+.bmd-tree-char   { opacity: 0.35; font-size: 15px; color: var(--accent); font-weight: 700; line-height: 1; }
+.bmd-model-name  { font-weight: 500; }
+.bmd-model-total { flex-shrink: 0; font-size: 12px; color: var(--text-muted); font-family: var(--mono); min-width: 52px; text-align: right; }
+
+/* ══════════════════════════════════════════════════════════
+   Modal
+   ══════════════════════════════════════════════════════════ */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-  z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px;
-  animation: fadeIn 0.2s ease;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: invFadeIn 0.2s ease;
 }
 .modal {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); width: 100%; max-width: 760px;
-  max-height: 90vh; overflow-y: auto; box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
 }
-.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
 .modal-title { font-size: 16px; font-weight: 700; }
-.modal-body { padding: 24px; }
+.modal-body  { padding: 24px; }
+
+/* ══════════════════════════════════════════════════════════
+   Misc / shared
+   ══════════════════════════════════════════════════════════ */
+@keyframes invFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.scan-filled {
+  border-color: var(--green, #34d399) !important;
+  background: var(--green-bg, rgba(52,211,153,0.08)) !important;
+  transition: border-color 0.3s, background 0.3s;
+}

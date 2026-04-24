@@ -1,19 +1,19 @@
 'use strict';
-// ─────────────────────────────────────────────────────────────────────────────
-// Backend/controllers/allocationController.js — with QR Code
-// Replace your existing allocationController.js with this
-// ─────────────────────────────────────────────────────────────────────────────
+// Backend/controllers/allocationController.js — FIXED
+// Fixes: 1) prepared_by showing in email & allocation list
+//        2) damage photos sent as embedded images in email
+//        3) receive endpoint now accepts & emails return photos
 
 const { query, getClient } = require('../config/db');
 
 const localDate = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-const asyncHandler = require('../utils/asyncHandler');
-const generateId   = require('../utils/generateId');
+const asyncHandler      = require('../utils/asyncHandler');
+const generateId        = require('../utils/generateId');
 const { sendAllocationEmail, sendReceiveEmail, sendSwapEmail } = require('../utils/emailService');
 const { generateToken } = require('./acceptanceController');
-const { generateQRBuffer } = require('../utils/generateQR'); // ← NEW
+const { generateQRBuffer } = require('../utils/generateQR');
 
 // ── Accessory stock helpers ───────────────────────────────────────────────────
 const deductAccessoryStock = async (client_pg, accessoryDetails) => {
@@ -29,7 +29,7 @@ const deductAccessoryStock = async (client_pg, accessoryDetails) => {
 
 const restoreAccessoryStock = async (client_pg, allocationId) => {
   const allocRow = await client_pg.query(
-    `SELECT asset_id, emp_id FROM allocations WHERE id = $1`,
+    `SELECT asset_id FROM allocations WHERE id = $1`,
     [allocationId]
   );
   if (!allocRow.rows.length) return;
@@ -53,6 +53,13 @@ const restoreAccessoryStock = async (client_pg, allocationId) => {
   }
 };
 
+// ── Helper: parse base64 photo array safely ───────────────────────────────────
+const parsePhotoArray = (raw) => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  try { return JSON.parse(raw) || []; } catch (_) { return []; }
+};
+
 // @route GET /api/allocations
 exports.getAllocations = asyncHandler(async (req, res) => {
   const { status, search, page = 1, limit = 50 } = req.query;
@@ -68,10 +75,12 @@ exports.getAllocations = asyncHandler(async (req, res) => {
   const countResult = await query(`SELECT COUNT(*) FROM allocations a ${where}`, params);
   const total = Number(countResult.rows[0].count);
   const result = await query(
-    `SELECT a.*, TO_CHAR(a.allocation_date,'YYYY-MM-DD') as allocation_date,
+    `SELECT a.*,
+       TO_CHAR(a.allocation_date,'YYYY-MM-DD') as allocation_date,
        TO_CHAR(a.return_date,'YYYY-MM-DD') as return_date,
        ast.brand, ast.model, ast.config, ast.serial
-     FROM allocations a LEFT JOIN assets ast ON ast.asset_id = a.asset_id
+     FROM allocations a
+     LEFT JOIN assets ast ON ast.asset_id = a.asset_id
      ${where} ORDER BY a.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
     [...params, limit, offset]
   );
@@ -82,10 +91,13 @@ exports.getAllocations = asyncHandler(async (req, res) => {
 exports.getAllocation = asyncHandler(async (req, res) => {
   const result = await query(
     `SELECT a.*, ast.brand, ast.model, ast.config, ast.serial, ast.warranty_end
-     FROM allocations a LEFT JOIN assets ast ON ast.asset_id = a.asset_id WHERE a.id = $1`,
+     FROM allocations a
+     LEFT JOIN assets ast ON ast.asset_id = a.asset_id
+     WHERE a.id = $1`,
     [req.params.id]
   );
-  if (!result.rows.length) return res.status(404).json({ success: false, message: 'Allocation not found' });
+  if (!result.rows.length)
+    return res.status(404).json({ success: false, message: 'Allocation not found' });
   res.json({ success: true, data: result.rows[0] });
 });
 
@@ -95,6 +107,7 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
     asset_id, emp_id, emp_name, emp_email, department, client, project,
     allocation_date, accessories, mobile_no, personal_email, photo_url,
     delivery_method, delivery_address, accessoryDetails, extra_ccs,
+    prepared_by, damage_photos,
   } = req.body;
 
   const client_pg = await getClient();
@@ -116,12 +129,16 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
 
     const allocationId = await generateId('ALO');
 
+    // ── FIX: ensure prepared_by is stored correctly ──
+    const staffName = prepared_by || req.user?.name || 'IT Staff';
+
     const allocResult = await client_pg.query(
       `INSERT INTO allocations
          (allocation_id, asset_id, emp_id, emp_name, emp_email,
           department, client, project, allocation_date, accessories,
-          mobile_no, personal_email, photo_url, delivery_method, delivery_address)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+          mobile_no, personal_email, photo_url, delivery_method, delivery_address,
+          prepared_by, damage_photos)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
        RETURNING *`,
       [
         allocationId, asset_id.toUpperCase(),
@@ -131,10 +148,15 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
         accessories || [],
         mobile_no || null, personal_email || null, photo_url || null,
         delivery_method || 'hand', delivery_address || null,
+        staffName,               // ← FIX: uses resolved staffName
+        damage_photos || '[]',
       ]
     );
 
-    await client_pg.query('UPDATE assets SET status = $1 WHERE asset_id = $2', ['Allocated', asset_id.toUpperCase()]);
+    await client_pg.query(
+      'UPDATE assets SET status = $1 WHERE asset_id = $2',
+      ['Allocated', asset_id.toUpperCase()]
+    );
     await deductAccessoryStock(client_pg, accessoryDetails);
 
     if (accessoryDetails?.length) {
@@ -144,9 +166,13 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
              (stock_id, item_name, quantity, emp_id, emp_name, emp_email,
               department, mobile_no, asset_id, allocated_by, notes)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-          [acc.stockId || null, acc.name, acc.quantity || 1, emp_id || null, emp_name, emp_email || null,
-           department || null, mobile_no || null, asset_id.toUpperCase(), req.user?.name || 'IT Staff',
-           `Allocated with laptop ${asset_id.toUpperCase()}`]
+          [
+            acc.stockId || null, acc.name, acc.quantity || 1,
+            emp_id || null, emp_name, emp_email || null,
+            department || null, mobile_no || null,
+            asset_id.toUpperCase(), staffName,
+            `Allocated with laptop ${asset_id.toUpperCase()}`
+          ]
         );
       }
     }
@@ -154,59 +180,65 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
     await client_pg.query(
       `INSERT INTO audit_logs (action, category, detail, asset_id, performed_by, meta)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      ['ASSET_ALLOCATED', 'allocate',
-       `${asset_id.toUpperCase()} allocated to ${emp_name} (${emp_id})`,
-       asset_id.toUpperCase(), req.user?.name || 'Admin',
-       JSON.stringify({ allocationId, empId: emp_id, project })]
+      [
+        'ASSET_ALLOCATED', 'allocate',
+        `${asset_id.toUpperCase()} allocated to ${emp_name} (${emp_id})`,
+        asset_id.toUpperCase(), staffName,
+        JSON.stringify({ allocationId, empId: emp_id, project }),
+      ]
     );
 
     await client_pg.query('COMMIT');
 
     const allocationDbId = allocResult.rows[0].id;
 
-    // ── Generate acceptance token ─────────────────────────────────────────────
+    // ── Acceptance token ──────────────────────────────────────────────────────
     let acceptanceLink = '';
     try {
       acceptanceLink = await generateToken(allocationDbId, asset_id.toUpperCase(), emp_name, emp_email || '');
-    } catch(e) { console.error('Token gen failed:', e.message); }
+    } catch (e) { console.error('Token gen failed:', e.message); }
 
-    // ── Generate QR code pointing to card page ────────────────────────────────
-    // QR encodes: http://yourserver.com/card/ALO-XXXXX
-    // Anyone who scans it sees the beautiful asset card page
-    const baseUrl = process.env.SERVER_URL || `http://localhost:5000`;
+    // ── QR code ───────────────────────────────────────────────────────────────
+    const baseUrl = process.env.SERVER_URL || 'http://localhost:5000';
     const cardUrl = `${baseUrl}/card/${allocationId}`;
-    let qrBuffer = null;
+    let qrBuffer  = null;
     try {
       qrBuffer = await generateQRBuffer(cardUrl);
       console.log(`📱 QR generated for ${allocationId} → ${cardUrl}`);
-    } catch(e) { console.error('QR gen failed:', e.message); }
+    } catch (e) { console.error('QR gen failed:', e.message); }
 
-    // ── Fetch asset info for email ────────────────────────────────────────────
+    // ── Asset info for email ──────────────────────────────────────────────────
     const assetInfoRes = await query(
       'SELECT brand, model, config, serial FROM assets WHERE asset_id = $1',
       [asset_id.toUpperCase()]
     );
     const assetInfo = assetInfoRes.rows[0] || {};
 
-    // ── Send email (non-blocking) ─────────────────────────────────────────────
+    // ── FIX: parse damage photos correctly ───────────────────────────────────
+    const damagePhotosArray = parsePhotoArray(damage_photos);
+
+    // ── Send allocation email (non-blocking) ──────────────────────────────────
     sendAllocationEmail({
       empName: emp_name, empEmail: emp_email, empId: emp_id,
       department: department || '', mobileNo: mobile_no || '',
       personalEmail: personal_email || '', photoUrl: photo_url || '',
-      deliveryMethod: delivery_method || 'hand', deliveryAddress: delivery_address || '',
+      deliveryMethod: delivery_method || 'hand',
+      deliveryAddress: delivery_address || '',
       assetId: asset_id.toUpperCase(),
       brand: assetInfo.brand || '', model: assetInfo.model || '',
       config: assetInfo.config || '', serial: assetInfo.serial || '',
       accessories: accessories || [], project: project || '', client: client || '',
       allocationDate: allocation_date || localDate(),
-      allocatedBy: req.user?.name || 'IT Staff',
+      allocatedBy: staffName,
       allocatedByEmail: req.user?.email || '',
       extraCCs: extra_ccs || [],
       acceptanceLink,
-      // ✅ NEW: QR code buffer + card URL
       qrCodeBuffer: qrBuffer,
       qrCardUrl: cardUrl,
       allocationId,
+      preparedBy: staffName,           // ← FIX: always set
+      damagePhotos: damage_photos || '[]',
+      damagePhotosArray,               // ← FIX: actual array for inline embeds
     });
 
     res.status(201).json({ success: true, data: allocResult.rows[0] });
@@ -220,146 +252,266 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
 
 // @route PUT /api/allocations/:id/receive
 exports.receiveLaptop = asyncHandler(async (req, res) => {
-  const { condition, damage_description } = req.body;
+  // ── FIX: now accepts return_photos from body ──────────────────────────────
+  const { condition, damage_description, extra_ccs, return_photos } = req.body;
+
   const client_pg = await getClient();
   try {
     await client_pg.query('BEGIN');
-    const allocRes = await client_pg.query('SELECT * FROM allocations WHERE id = $1', [req.params.id]);
-    if (!allocRes.rows.length) { await client_pg.query('ROLLBACK'); return res.status(404).json({ success: false, message: 'Allocation not found' }); }
-    const alloc = allocRes.rows[0];
-    if (alloc.status !== 'Active') { await client_pg.query('ROLLBACK'); return res.status(400).json({ success: false, message: 'Allocation is not active' }); }
 
-    const statusMap = { good: 'Stock', repair: 'Repair', scrap: 'Scrap' };
-    const newStatus = statusMap[condition] || 'Stock';
+    const allocRes = await client_pg.query(
+      'SELECT * FROM allocations WHERE id = $1',
+      [req.params.id]
+    );
+    if (!allocRes.rows.length) {
+      await client_pg.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Allocation not found' });
+    }
+    const alloc = allocRes.rows[0];
+    if (alloc.status !== 'Active') {
+      await client_pg.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Allocation is not active' });
+    }
+
+    const statusMap    = { good: 'Stock', repair: 'Repair', scrap: 'Scrap' };
+    const newStatus    = statusMap[condition] || 'Stock';
 
     const updatedAlloc = await client_pg.query(
-      `UPDATE allocations SET status = 'Returned', return_date = CURRENT_DATE, notes = $1 WHERE id = $2 RETURNING *`,
+      `UPDATE allocations
+       SET status = 'Returned', return_date = CURRENT_DATE, notes = $1
+       WHERE id = $2 RETURNING *`,
       [damage_description || null, req.params.id]
     );
-    await client_pg.query('UPDATE assets SET status = $1 WHERE asset_id = $2', [newStatus, alloc.asset_id]);
+    await client_pg.query(
+      'UPDATE assets SET status = $1 WHERE asset_id = $2',
+      [newStatus, alloc.asset_id]
+    );
 
     if (condition === 'repair') {
       const repairId = await generateId('REP');
-      await client_pg.query(`INSERT INTO repairs (repair_id, asset_id, issue, status) VALUES ($1,$2,$3,'In Repair')`,
-        [repairId, alloc.asset_id, damage_description || 'Reported at return']);
+      await client_pg.query(
+        `INSERT INTO repairs (repair_id, asset_id, issue, status) VALUES ($1,$2,$3,'In Repair')`,
+        [repairId, alloc.asset_id, damage_description || 'Reported at return']
+      );
     }
     if (condition === 'scrap') {
       const scrapId = await generateId('SCR');
-      await client_pg.query(`INSERT INTO scraps (scrap_id, asset_id, reason, approved_by) VALUES ($1,$2,$3,$4)`,
-        [scrapId, alloc.asset_id, damage_description || 'Poor condition at return', req.user?.name || 'Admin']);
+      await client_pg.query(
+        `INSERT INTO scraps (scrap_id, asset_id, reason, approved_by) VALUES ($1,$2,$3,$4)`,
+        [scrapId, alloc.asset_id, damage_description || 'Poor condition at return', req.user?.name || 'Admin']
+      );
     }
 
     await restoreAccessoryStock(client_pg, req.params.id);
     await client_pg.query(
-      `INSERT INTO audit_logs (action, category, detail, asset_id, performed_by) VALUES ($1,$2,$3,$4,$5)`,
-      ['ASSET_RECEIVED', 'receive', `${alloc.asset_id} returned by ${alloc.emp_name}. Condition: ${condition}. New status: ${newStatus}`, alloc.asset_id, req.user?.name || 'Admin']
+      `INSERT INTO audit_logs (action, category, detail, asset_id, performed_by)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [
+        'ASSET_RECEIVED', 'receive',
+        `${alloc.asset_id} returned by ${alloc.emp_name}. Condition: ${condition}. New status: ${newStatus}`,
+        alloc.asset_id, req.user?.name || 'Admin',
+      ]
     );
     await client_pg.query('COMMIT');
 
+    // ── Send receive email with return photos ────────────────────────────────
     if (alloc.emp_email) {
-      const ae = (await query('SELECT brand, model, serial FROM assets WHERE asset_id = $1', [alloc.asset_id])).rows[0] || {};
-      const conditionLabel = { good: 'Good — No damage', repair: 'Needs Repair', scrap: 'Damaged / Unrepairable' };
+      const ae = (await query(
+        'SELECT brand, model, serial FROM assets WHERE asset_id = $1',
+        [alloc.asset_id]
+      )).rows[0] || {};
+
+      const conditionLabel = {
+        good:   'Good — No damage',
+        repair: 'Needs Repair',
+        scrap:  'Damaged / Unrepairable',
+      };
+
+      // ── FIX: parse return photos and pass as array ──
+      const returnPhotosArray = parsePhotoArray(return_photos);
+
       sendReceiveEmail({
-        empName: alloc.emp_name, empEmail: alloc.emp_email, empId: alloc.emp_id,
-        department: alloc.department, mobileNo: alloc.mobile_no || '',
-        assetId: alloc.asset_id, brand: ae.brand || '', model: ae.model || '', serial: ae.serial || '',
-        returnDate: localDate(), condition: conditionLabel[condition] || condition, newStatus,
+        empName:           alloc.emp_name,
+        empEmail:          alloc.emp_email,
+        empId:             alloc.emp_id,
+        department:        alloc.department,
+        mobileNo:          alloc.mobile_no || '',
+        assetId:           alloc.asset_id,
+        brand:             ae.brand   || '',
+        model:             ae.model   || '',
+        serial:            ae.serial  || '',
+        returnDate:        localDate(),
+        condition:         conditionLabel[condition] || condition,
+        newStatus,
         damageDescription: damage_description || '',
-        receivedBy: req.user?.name || 'IT Staff', receivedByEmail: req.user?.email || '',
-        extraCCs: req.body.extra_ccs || [],
+        receivedBy:        req.user?.name  || 'IT Staff',
+        receivedByEmail:   req.user?.email || '',
+        extraCCs:          extra_ccs || [],
+        damagePhotos:      returnPhotosArray,   // ← FIX: array goes to emailService
       });
     }
+
     res.json({ success: true, data: updatedAlloc.rows[0], newAssetStatus: newStatus });
-  } catch (err) { await client_pg.query('ROLLBACK'); throw err; }
-  finally { client_pg.release(); }
+  } catch (err) {
+    await client_pg.query('ROLLBACK');
+    throw err;
+  } finally {
+    client_pg.release();
+  }
 });
 
 // @route PUT /api/allocations/:id/swap
 exports.swapLaptop = asyncHandler(async (req, res) => {
-  const { new_asset_id, issue_type, issue_description, old_condition } = req.body;
+  const {
+    new_asset_id, issue_type, issue_description,
+    old_condition, extra_ccs, issue_images, prepared_by,
+  } = req.body;
+
   const client_pg = await getClient();
   try {
     await client_pg.query('BEGIN');
-    const allocRes = await client_pg.query('SELECT * FROM allocations WHERE id = $1', [req.params.id]);
-    if (!allocRes.rows.length) { await client_pg.query('ROLLBACK'); return res.status(404).json({ success: false, message: 'Not found' }); }
-    const alloc = allocRes.rows[0];
-    if (alloc.status !== 'Active') { await client_pg.query('ROLLBACK'); return res.status(400).json({ success: false, message: 'Not active' }); }
 
-    const newAssetRes = await client_pg.query('SELECT * FROM assets WHERE asset_id = $1', [new_asset_id.toUpperCase()]);
+    const allocRes = await client_pg.query(
+      'SELECT * FROM allocations WHERE id = $1',
+      [req.params.id]
+    );
+    if (!allocRes.rows.length) {
+      await client_pg.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Not found' });
+    }
+    const alloc = allocRes.rows[0];
+    if (alloc.status !== 'Active') {
+      await client_pg.query('ROLLBACK');
+      return res.status(400).json({ success: false, message: 'Not active' });
+    }
+
+    const newAssetRes = await client_pg.query(
+      'SELECT * FROM assets WHERE asset_id = $1',
+      [new_asset_id.toUpperCase()]
+    );
     if (!newAssetRes.rows.length || newAssetRes.rows[0].status !== 'Stock') {
       await client_pg.query('ROLLBACK');
       return res.status(400).json({ success: false, message: `Asset ${new_asset_id} not available` });
     }
     const newAsset = newAssetRes.rows[0];
 
-    await client_pg.query(`UPDATE allocations SET status='Swapped', return_date=CURRENT_DATE, notes=$1 WHERE id=$2`,
-      [`Swapped — ${issue_type}: ${issue_description || ''}`, req.params.id]);
+    await client_pg.query(
+      `UPDATE allocations SET status='Swapped', return_date=CURRENT_DATE, notes=$1 WHERE id=$2`,
+      [`Swapped — ${issue_type}: ${issue_description || ''}`, req.params.id]
+    );
+
     const oldStatus = old_condition === 'working' ? 'Stock' : 'Repair';
     await client_pg.query('UPDATE assets SET status=$1 WHERE asset_id=$2', [oldStatus, alloc.asset_id]);
 
     if (old_condition === 'repair') {
       const repairId = await generateId('REP');
-      await client_pg.query(`INSERT INTO repairs (repair_id, asset_id, issue, status) VALUES ($1,$2,$3,'In Repair')`,
-        [repairId, alloc.asset_id, `${issue_type}${issue_description ? ': '+issue_description : ''}`]);
+      await client_pg.query(
+        `INSERT INTO repairs (repair_id, asset_id, issue, status) VALUES ($1,$2,$3,'In Repair')`,
+        [repairId, alloc.asset_id, `${issue_type}${issue_description ? ': ' + issue_description : ''}`]
+      );
     }
+
     await restoreAccessoryStock(client_pg, req.params.id);
     await client_pg.query('UPDATE assets SET status=$1 WHERE asset_id=$2', ['Allocated', newAsset.asset_id]);
 
+    const staffName  = prepared_by || req.user?.name || 'IT Staff';
     const newAllocId = await generateId('ALO');
+
     const newAllocResult = await client_pg.query(
-      `INSERT INTO allocations (allocation_id, asset_id, emp_id, emp_name, emp_email,
-         department, client, project, accessories, notes, mobile_no, delivery_method)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [newAllocId, newAsset.asset_id, alloc.emp_id, alloc.emp_name, alloc.emp_email,
-       alloc.department, alloc.client, alloc.project, alloc.accessories,
-       `Swapped from ${alloc.asset_id}`, alloc.mobile_no, alloc.delivery_method || 'hand']
+      `INSERT INTO allocations
+         (allocation_id, asset_id, emp_id, emp_name, emp_email,
+          department, client, project, accessories, notes,
+          mobile_no, delivery_method, prepared_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [
+        newAllocId, newAsset.asset_id,
+        alloc.emp_id, alloc.emp_name, alloc.emp_email,
+        alloc.department, alloc.client, alloc.project,
+        alloc.accessories,
+        `Swapped from ${alloc.asset_id}`,
+        alloc.mobile_no, alloc.delivery_method || 'hand',
+        staffName,
+      ]
     );
 
     await client_pg.query(
-      `INSERT INTO audit_logs (action, category, detail, asset_id, performed_by, meta) VALUES ($1,$2,$3,$4,$5,$6)`,
-      ['ASSET_SWAPPED','swap',`${alloc.asset_id} swapped with ${newAsset.asset_id} for ${alloc.emp_name}`,
-       alloc.asset_id, req.user?.name || 'Admin',
-       JSON.stringify({ oldAssetId: alloc.asset_id, newAssetId: newAsset.asset_id, issue_type })]
+      `INSERT INTO audit_logs (action, category, detail, asset_id, performed_by, meta)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [
+        'ASSET_SWAPPED', 'swap',
+        `${alloc.asset_id} swapped with ${newAsset.asset_id} for ${alloc.emp_name}`,
+        alloc.asset_id, staffName,
+        JSON.stringify({ oldAssetId: alloc.asset_id, newAssetId: newAsset.asset_id, issue_type }),
+      ]
     );
+
     await client_pg.query('COMMIT');
 
-    // ── Generate QR for new allocation ───────────────────────────────────────
+    // ── QR for new allocation ─────────────────────────────────────────────────
     const baseUrl = process.env.SERVER_URL || 'http://localhost:5000';
     const cardUrl = `${baseUrl}/card/${newAllocId}`;
-    let qrBuffer = null;
-    try { qrBuffer = await generateQRBuffer(cardUrl); } catch(_) {}
+    let qrBuffer  = null;
+    try { qrBuffer = await generateQRBuffer(cardUrl); } catch (_) {}
+
+    // ── FIX: parse issue images correctly ────────────────────────────────────
+    const issuePhotosArray = parsePhotoArray(issue_images);
 
     if (alloc.emp_email) {
-      const oldAE = (await query('SELECT brand,model,serial FROM assets WHERE asset_id=$1', [alloc.asset_id])).rows[0] || {};
+      const oldAE = (await query(
+        'SELECT brand, model, serial FROM assets WHERE asset_id=$1',
+        [alloc.asset_id]
+      )).rows[0] || {};
+
       sendSwapEmail({
-        empName: alloc.emp_name, empEmail: alloc.emp_email, empId: alloc.emp_id,
-        department: alloc.department, project: alloc.project, mobileNo: alloc.mobile_no || '',
-        photoUrl: alloc.photo_url || '',
-        oldAssetId: alloc.asset_id, oldBrand: oldAE.brand||'', oldModel: oldAE.model||'', oldSerial: oldAE.serial||'',
-        newAssetId: newAsset.asset_id, newBrand: newAsset.brand||'', newModel: newAsset.model||'',
-        newConfig: newAsset.config||'', newSerial: newAsset.serial||'',
-        issueType: issue_type, issueDescription: issue_description||'',
-        swapDate: localDate(), swappedBy: req.user?.name||'IT Staff', swappedByEmail: req.user?.email||'',
-        extraCCs: req.body.extra_ccs || [],
-        // ✅ NEW QR fields
-        qrCodeBuffer: qrBuffer,
-        qrCardUrl: cardUrl,
-        newAllocationId: newAllocId,
+        empName:          alloc.emp_name,
+        empEmail:         alloc.emp_email,
+        empId:            alloc.emp_id,
+        department:       alloc.department,
+        project:          alloc.project,
+        mobileNo:         alloc.mobile_no || '',
+        photoUrl:         alloc.photo_url || '',
+        oldAssetId:       alloc.asset_id,
+        oldBrand:         oldAE.brand  || '',
+        oldModel:         oldAE.model  || '',
+        oldSerial:        oldAE.serial || '',
+        newAssetId:       newAsset.asset_id,
+        newBrand:         newAsset.brand  || '',
+        newModel:         newAsset.model  || '',
+        newConfig:        newAsset.config || '',
+        newSerial:        newAsset.serial || '',
+        issueType:        issue_type,
+        issueDescription: issue_description || '',
+        swapDate:         localDate(),
+        swappedBy:        staffName,
+        swappedByEmail:   req.user?.email || '',
+        extraCCs:         extra_ccs || [],
+        qrCodeBuffer:     qrBuffer,
+        qrCardUrl:        cardUrl,
+        newAllocationId:  newAllocId,
+        preparedBy:       staffName,       // ← FIX
+        issueImages:      issuePhotosArray, // ← FIX: array for inline embeds
       });
     }
+
     res.json({ success: true, data: newAllocResult.rows[0] });
-  } catch (err) { await client_pg.query('ROLLBACK'); throw err; }
-  finally { client_pg.release(); }
+  } catch (err) {
+    await client_pg.query('ROLLBACK');
+    throw err;
+  } finally {
+    client_pg.release();
+  }
 });
 
 // @route GET /api/allocations/my
 exports.getMyAllocation = asyncHandler(async (req, res) => {
   const result = await query(
     `SELECT a.id, a.allocation_id, a.asset_id, a.emp_id, a.emp_name, a.emp_email,
-       a.department, a.client, a.project, a.allocation_date, a.accessories, a.status,
+       a.department, a.client, a.project, a.allocation_date, a.accessories,
+       a.status, a.prepared_by,
        ast.brand, ast.model, ast.config, ast.processor, ast.ram, ast.storage,
        ast.serial, ast.warranty_end, ast.warranty_start, ast.vendor, ast.location
-     FROM allocations a LEFT JOIN assets ast ON ast.asset_id = a.asset_id
+     FROM allocations a
+     LEFT JOIN assets ast ON ast.asset_id = a.asset_id
      WHERE LOWER(a.emp_email) = LOWER($1) AND a.status = 'Active'
      ORDER BY a.created_at DESC LIMIT 1`,
     [req.user.email]

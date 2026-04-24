@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/common/StatusBadge';
-import { RefreshCw, CheckCircle, ChevronRight } from 'lucide-react';
+import { RefreshCw, CheckCircle, ChevronRight, Camera, Plus, Wrench, AlertTriangle, X } from 'lucide-react';
 import CCEmailInput from '../components/common/CCEmailInput';
 
 const ISSUE_TYPES = ['Hardware Failure', 'Performance Issue', 'Upgrade Request', 'Battery Issue', 'Screen Damage', 'Other'];
@@ -40,6 +40,7 @@ export default function SwapLaptop() {
   const { allocations, assets, swapAsset } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
+  const issueImgRef = useRef();
 
   const [step, setStep] = useState(1);
   const [selectedAllocId, setSelectedAllocId] = useState('');
@@ -49,6 +50,10 @@ export default function SwapLaptop() {
   const [oldCondition, setOldCondition] = useState('working');
   const [ccEmails, setCCEmails] = useState([]);
   const [done, setDone] = useState(false);
+
+  // ── NEW fields ──
+  const [preparedBy, setPreparedBy] = useState('');
+  const [issueImages, setIssueImages] = useState([]);
 
   const activeAllocs = allocations.filter(a => a.status === 'Active');
   const stockAssets = assets.filter(a => a.status === 'Stock');
@@ -64,8 +69,33 @@ export default function SwapLaptop() {
   const oldAsset = alloc ? assets.find(a => a.id === alloc.assetId) : null;
   const newAsset = assets.find(a => a.id === newAssetId);
 
+  // Handle multiple issue images
+  const handleIssueImages = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setIssueImages(prev => [...prev, { src: ev.target.result, name: file.name }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const removeIssueImage = (index) => {
+    setIssueImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleConfirm = async () => {
-    await swapAsset(alloc.dbId, alloc.assetId, newAssetId, { issueType, issueDesc, oldCondition, extra_ccs: ccEmails });
+    await swapAsset(alloc.dbId, alloc.assetId, newAssetId, {
+      issueType,
+      issueDesc,
+      oldCondition,
+      extra_ccs: ccEmails,
+      // ── NEW ──
+      prepared_by: preparedBy,
+      issueImages: issueImages.map(img => img.src),
+    });
     setDone(true);
     setTimeout(() => navigate('/allocation-list'), 1800);
   };
@@ -179,63 +209,178 @@ export default function SwapLaptop() {
       {/* Step 4: Reason & Confirm */}
       {step === 4 && (
         <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          <div className="card">
-            <div className="section-title">Step 4 — Swap Reason</div>
-            <div className="form-group">
-              <label className="form-label">Issue Type *</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {ISSUE_TYPES.map(t => (
-                  <label key={t} className={`radio-option ${issueType === t ? 'selected' : ''}`} style={{ justifyContent: 'flex-start' }}>
-                    <input type="radio" name="issueType" value={t} checked={issueType === t} onChange={() => setIssueType(t)} />
-                    {t}
+
+          {/* LEFT — Issue details + new fields */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Swap Reason */}
+            <div className="card">
+              <div className="section-title">Step 4 — Swap Reason</div>
+              <div className="form-group">
+                <label className="form-label">Issue Type *</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {ISSUE_TYPES.map(t => (
+                    <label key={t} className={`radio-option ${issueType === t ? 'selected' : ''}`} style={{ justifyContent: 'flex-start' }}>
+                      <input type="radio" name="issueType" value={t} checked={issueType === t} onChange={() => setIssueType(t)} />
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Issue Description</label>
+                <textarea className="form-textarea" value={issueDesc} onChange={e => setIssueDesc(e.target.value)} placeholder="Describe the issue in detail…" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Old Laptop Condition After Return</label>
+                <div className="radio-group">
+                  <label className={`radio-option ${oldCondition === 'working' ? 'selected' : ''}`}>
+                    <input type="radio" name="oldCondition" value="working" checked={oldCondition === 'working'} onChange={() => setOldCondition('working')} />
+                    Working → Stock
                   </label>
-                ))}
+                  <label className={`radio-option ${oldCondition === 'repair' ? 'selected' : ''}`} style={oldCondition === 'repair' ? { borderColor: 'var(--amber)', background: 'var(--amber-bg)', color: 'var(--amber)' } : {}}>
+                    <input type="radio" name="oldCondition" value="repair" checked={oldCondition === 'repair'} onChange={() => setOldCondition('repair')} />
+                    Needs Repair
+                  </label>
+                </div>
               </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Issue Description</label>
-              <textarea className="form-textarea" value={issueDesc} onChange={e => setIssueDesc(e.target.value)} placeholder="Describe the issue in detail…" />
+
+            {/* ── NEW: Issue Documentation ── */}
+            <div className="card">
+              <div className="section-title">
+                <AlertTriangle size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle', color: '#f59e0b' }} />
+                Issue Documentation
+                {issueImages.length > 0 && (
+                  <span style={{
+                    marginLeft: 8, fontSize: 11, fontWeight: 600,
+                    color: '#f59e0b', background: 'rgba(251,191,36,.1)',
+                    padding: '2px 8px', borderRadius: 20,
+                  }}>
+                    {issueImages.length} image{issueImages.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <div style={{
+                fontSize: 12, color: 'var(--text-muted)', marginBottom: 14,
+                padding: '10px 12px',
+                background: 'rgba(251,191,36,.06)',
+                border: '1px solid rgba(251,191,36,.2)',
+                borderRadius: 'var(--radius)',
+              }}>
+                Capture any visible damage or issues on the old laptop. These images will be attached to the swap email.
+              </div>
+              <input
+                type="file"
+                ref={issueImgRef}
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                onChange={handleIssueImages}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => issueImgRef.current?.click()}
+                style={{ marginBottom: issueImages.length > 0 ? 14 : 0 }}
+              >
+                <Camera size={13} /> Capture / Attach Issue Images
+              </button>
+              {issueImages.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {issueImages.map((img, i) => (
+                    <div key={i} style={{ position: 'relative', flexShrink: 0 }}>
+                      <img src={img.src} alt={`Issue ${i + 1}`}
+                        style={{ width: 90, height: 70, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border)', display: 'block' }} />
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 3 }}>
+                        {img.name}
+                      </div>
+                      <button type="button" onClick={() => removeIssueImage(i)} style={{
+                        position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%',
+                        background: 'var(--red, #f87171)', color: '#fff', border: 'none', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, lineHeight: 1,
+                      }}>×</button>
+                    </div>
+                  ))}
+                  <div onClick={() => issueImgRef.current?.click()} style={{
+                    width: 90, height: 70, borderRadius: 6, border: '2px dashed var(--border2)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', color: 'var(--text-muted)', fontSize: 11, gap: 4,
+                  }}>
+                    <Plus size={16} style={{ opacity: 0.5 }} />
+                    Add more
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="form-group">
-              <label className="form-label">Old Laptop Condition After Return</label>
-              <div className="radio-group">
-                <label className={`radio-option ${oldCondition === 'working' ? 'selected' : ''}`}>
-                  <input type="radio" name="oldCondition" value="working" checked={oldCondition === 'working'} onChange={() => setOldCondition('working')} />
-                  Working → Stock
-                </label>
-                <label className={`radio-option ${oldCondition === 'repair' ? 'selected' : ''}`} style={oldCondition === 'repair' ? { borderColor: 'var(--amber)', background: 'var(--amber-bg)', color: 'var(--amber)' } : {}}>
-                  <input type="radio" name="oldCondition" value="repair" checked={oldCondition === 'repair'} onChange={() => setOldCondition('repair')} />
-                  Needs Repair
-                </label>
+
+            {/* ── NEW: Preparation Details ── */}
+            <div className="card">
+              <div className="section-title">
+                <Wrench size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                Preparation Details
+              </div>
+              <div style={{
+                fontSize: 12, color: 'var(--text-muted)', marginBottom: 14,
+                padding: '10px 12px', background: 'rgba(79,142,247,.06)',
+                border: '1px solid rgba(79,142,247,.15)', borderRadius: 'var(--radius)',
+              }}>
+                Record who configured and prepared the new replacement laptop before issuing it.
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Configured / Prepared By</label>
+                <input
+                  className="form-input"
+                  value={preparedBy}
+                  onChange={e => setPreparedBy(e.target.value)}
+                  placeholder="e.g. Ravi Kumar (IT Support)"
+                />
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Name of the IT staff member who set up the new laptop.
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="card">
-            <div className="section-title">Swap Summary</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ padding: '14px', background: 'var(--red-bg)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 'var(--radius)' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Returning</div>
-                <div style={{ fontWeight: 700, color: 'var(--text)' }}>{oldAsset?.id} — {oldAsset?.brand} {oldAsset?.model}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{oldAsset?.config}</div>
-              </div>
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}><RefreshCw size={18} /></div>
-              <div style={{ padding: '14px', background: 'var(--green-bg)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 'var(--radius)' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>New Laptop</div>
-                <div style={{ fontWeight: 700, color: 'var(--text)' }}>{newAsset?.id} — {newAsset?.brand} {newAsset?.model}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{newAsset?.config}</div>
-              </div>
-              <div style={{ padding: '12px 14px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13 }}>
-                <div><span style={{ color: 'var(--text-muted)' }}>Employee: </span><strong>{alloc?.empName}</strong></div>
-                <div style={{ marginTop: 4 }}><span style={{ color: 'var(--text-muted)' }}>Reason: </span><strong>{issueType || '—'}</strong></div>
+          {/* RIGHT — Summary + CC + Confirm */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Swap Summary */}
+            <div className="card">
+              <div className="section-title">Swap Summary</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ padding: '14px', background: 'var(--red-bg)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 'var(--radius)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Returning</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text)' }}>{oldAsset?.id} — {oldAsset?.brand} {oldAsset?.model}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{oldAsset?.config}</div>
+                </div>
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}><RefreshCw size={18} /></div>
+                <div style={{ padding: '14px', background: 'var(--green-bg)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 'var(--radius)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>New Laptop</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text)' }}>{newAsset?.id} — {newAsset?.brand} {newAsset?.model}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{newAsset?.config}</div>
+                </div>
+                <div style={{ padding: '12px 14px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13 }}>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Employee: </span><strong>{alloc?.empName}</strong></div>
+                  <div style={{ marginTop: 4 }}><span style={{ color: 'var(--text-muted)' }}>Reason: </span><strong>{issueType || '—'}</strong></div>
+                  {preparedBy && (
+                    <div style={{ marginTop: 4 }}><span style={{ color: 'var(--text-muted)' }}>Prepared By: </span><strong>{preparedBy}</strong></div>
+                  )}
+                  {issueImages.length > 0 && (
+                    <div style={{ marginTop: 4 }}><span style={{ color: 'var(--text-muted)' }}>Issue Images: </span><strong>{issueImages.length} attached</strong></div>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="card" style={{ marginTop: 16 }}>
+
+            {/* CC Emails */}
+            <div className="card">
               <div className="section-title" style={{ marginBottom: 10 }}>CC Emails for Notification</div>
               <CCEmailInput ccEmails={ccEmails} onChange={setCCEmails} />
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 10 }}>
               <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setStep(3)}>Back</button>
               <button className="btn btn-primary" style={{ flex: 1 }} disabled={!issueType} onClick={handleConfirm}>
                 <RefreshCw size={15} /> Confirm Swap
