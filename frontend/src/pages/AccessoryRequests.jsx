@@ -19,7 +19,7 @@ const ACCESSORY_LIST = [
   'Monitor', 'Keyboard', 'Mouse', 'Webcam', 'External Hard Disk',
   'USB Hub', 'Headset', 'Headphones', 'Docking Station', 'Laptop Stand',
   'Ethernet Cable', 'HDMI Cable', 'Pendrive / USB Drive', 'Printer',
-  'Scanner', 'SSD / Storage Upgrade', 'RAM Upgrade', 'Power Strip', 'Other',
+  'Scanner', 'SSD / Storage Upgrade', 'RAM Upgrade', 'Power Strip', 'Bag','Other',
 ];
 
 // ── Allocate Modal ────────────────────────────────────────────────────────────

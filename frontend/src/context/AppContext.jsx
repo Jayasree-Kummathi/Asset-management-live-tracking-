@@ -114,8 +114,8 @@ export function AppProvider({ children }) {
     try {
       setLoading(true);
       const [assetsRes, allocsRes, repairsRes, scrapsRes, statsRes] = await Promise.all([
-        apiFetch('/assets?limit=200'),
-        apiFetch('/allocations?limit=200'),
+       apiFetch('/assets?limit=10000'),
+       apiFetch('/allocations?limit=10000'),
         apiFetch('/repairs'),
         apiFetch('/scraps'),
         apiFetch('/assets/stats'),

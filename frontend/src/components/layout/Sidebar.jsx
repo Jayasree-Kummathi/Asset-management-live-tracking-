@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Package, Send, List, Download,
   RefreshCw, Wrench, Trash2, BarChart3, ClipboardList,
   LogOut, ChevronRight, Users, Laptop, ShoppingCart, CheckSquare,
-  Network
+  Network,Shield,
 } from 'lucide-react';
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -26,7 +26,8 @@ const adminNav = [
   { label: 'Reports',           icon: BarChart3,       path: '/reports' },
   { label: 'Audit Logs',        icon: ClipboardList,   path: '/audit' },
   { label: 'Live Tracking',     icon: MapPin,          path: '/live-tracking' },
-  { label: 'Manage Users',      icon: Users,           path: '/users' },
+  { label: 'Manage Users', icon: Users, path: '/users' },
+  { label: 'Access Control', icon: Shield, path: '/access-control' },
 
   // ✅ NEW ITEMS
   { label: 'Agent Manager',     icon: Cpu,             path: '/agent-manager' },

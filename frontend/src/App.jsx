@@ -28,6 +28,7 @@ import NetworkAssets     from './pages/Networkassets';
 import LiveTracking      from './pages/LiveTracking';
 import AgentManager      from './pages/AgentManager'; 
 import SoftwarePush from './pages/Softwarepush';
+import AccessControl from './pages/Accesscontrol';
 
 import './styles/global.css';
 
@@ -178,6 +179,15 @@ function ProtectedLayout() {
                   <SoftwarePush />
                 </RequireRole>
               } />
+
+              <Route
+  path="/access-control"
+  element={
+    <RequireRole roles={['admin']}>
+      <AccessControl />
+    </RequireRole>
+  }
+/>
 
               {/* ── Default redirect based on role ──────────────────────── */}
               <Route path="*" element={

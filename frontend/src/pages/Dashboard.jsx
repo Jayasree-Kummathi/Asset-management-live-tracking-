@@ -6,8 +6,15 @@ import StatusBadge from '../components/common/StatusBadge';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import './Dashboard.css';
 
-const StatCard = ({ label, value, icon: Icon, color, sub, onClick }) => (
-  <div className={`stat-card stat-${color}`} onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+const COLORS = ['#34d399', '#4f8ef7', '#fbbf24', '#f87171'];
+
+// Updated StatCard with alert/blinking support
+const StatCard = ({ label, value, icon: Icon, color, sub, onClick, alert }) => (
+  <div 
+    className={`stat-card stat-${color} ${alert || ''}`} 
+    onClick={onClick} 
+    style={{ cursor: onClick ? 'pointer' : 'default' }}
+  >
     <div className="stat-top">
       <div className="stat-icon"><Icon size={18} /></div>
       <div className="stat-value">{value}</div>
@@ -17,24 +24,29 @@ const StatCard = ({ label, value, icon: Icon, color, sub, onClick }) => (
   </div>
 );
 
-const COLORS = ['#34d399', '#4f8ef7', '#fbbf24', '#f87171'];
-
 export default function Dashboard() {
   const { assets, allocations, repairs, scraps, stats } = useApp();
   const navigate = useNavigate();
 
+  // Calculate alert conditions for each stat card
+  const lowStockAlert = stats.stock > 0 && stats.stock < 5;
+  const hasAllocated = stats.allocated > 0;
+  const hasRepair = stats.repair > 0;
+  const hasScrap = stats.scrap > 0;
+  const totalAssets = stats.total;
+
   const pieData = [
-    { name: 'Stock', value: stats.stock },
-    { name: 'Allocated', value: stats.allocated },
-    { name: 'Repair', value: stats.repair },
-    { name: 'Scrap', value: stats.scrap },
+    { name: 'Stock', value: stats.stock, color: COLORS[0] },
+    { name: 'Allocated', value: stats.allocated, color: COLORS[1] },
+    { name: 'Repair', value: stats.repair, color: COLORS[2] },
+    { name: 'Scrap', value: stats.scrap, color: COLORS[3] },
   ].filter(d => d.value > 0);
 
   const barData = [
-    { name: 'Stock', count: stats.stock },
-    { name: 'Allocated', count: stats.allocated },
-    { name: 'Repair', count: stats.repair },
-    { name: 'Scrap', count: stats.scrap },
+    { name: 'Stock', count: stats.stock, color: COLORS[0] },
+    { name: 'Allocated', count: stats.allocated, color: COLORS[1] },
+    { name: 'Repair', count: stats.repair, color: COLORS[2] },
+    { name: 'Scrap', count: stats.scrap, color: COLORS[3] },
   ];
 
   const recentAllocs = allocations.filter(a => a.status === 'Active').slice(0, 4);
@@ -46,13 +58,53 @@ export default function Dashboard() {
         <p>Asset management summary for your organization</p>
       </div>
 
-      {/* Stats */}
+      {/* Stats with Blinking Alerts */}
       <div className="stats-grid">
-        <StatCard label="Total Assets" value={stats.total} icon={Package} color="blue" sub="All assets in system" onClick={() => navigate('/inventory')} />
-        <StatCard label="In Stock" value={stats.stock} icon={TrendingUp} color="green" sub="Ready to allocate" onClick={() => navigate('/inventory')} />
-        <StatCard label="Allocated" value={stats.allocated} icon={Send} color="purple" sub="Currently with employees" onClick={() => navigate('/allocation-list')} />
-        <StatCard label="Under Repair" value={stats.repair} icon={Wrench} color="amber" sub="Awaiting service" onClick={() => navigate('/repair')} />
-        <StatCard label="Scrapped" value={stats.scrap} icon={Trash2} color="red" sub="End of life" onClick={() => navigate('/scrap')} />
+        <StatCard 
+          label="Total Assets" 
+          value={stats.total} 
+          icon={Package} 
+          color="blue" 
+          sub="All assets in system" 
+          onClick={() => navigate('/inventory')}
+          alert="" // Never blinks
+        />
+        <StatCard 
+          label="In Stock" 
+          value={stats.stock} 
+          icon={TrendingUp} 
+          color="green" 
+          sub={lowStockAlert ? "⚠️ Low stock - replenish soon" : "Ready to allocate"}
+          onClick={() => navigate('/inventory')}
+          alert={lowStockAlert ? "stat-card-alert-green blink-fast" : ""}
+        />
+        <StatCard 
+          label="Allocated" 
+          value={stats.allocated} 
+          icon={Send} 
+          color="purple" 
+          sub="Currently with employees"
+          onClick={() => navigate('/allocation-list')}
+          alert={hasAllocated ? "stat-card-alert-blue" : ""}
+        />
+        <StatCard 
+          label="Under Repair" 
+          value={stats.repair} 
+          icon={Wrench} 
+          color="amber" 
+          sub={hasRepair ? "⚠️ Awaiting service" : "No assets in repair"}
+          onClick={() => navigate('/repair')}
+          alert={hasRepair ? "stat-card-alert-amber" : ""}
+        />
+        <StatCard 
+          label="Scrapped" 
+          value={stats.scrap} 
+          icon={Trash2} 
+          color="red" 
+          sub="End of life"
+          onClick={() => navigate('/scrap')}
+          alert={hasScrap ? "stat-card-alert-red" : ""}
+        />
       </div>
 
       {/* Charts + Table */}
@@ -62,37 +114,54 @@ export default function Dashboard() {
           <div className="section-title" style={{ marginBottom: 20 }}>Asset Distribution</div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={barData} barSize={32}>
-              <XAxis dataKey="name" tick={{ fill: '#6b7490', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#6b7490', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fill: '#e8eaf0', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#e8eaf0', fontSize: 12 }} axisLine={false} tickLine={false} />
               <Tooltip
-                contentStyle={{ background: '#1c2030', border: '1px solid #252a38', borderRadius: 8, color: '#e8eaf0', fontSize: 13 }}
-                cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                contentStyle={{ background: '#e2e5f0', border: '1px solid #c0cae3', borderRadius: 8, color: '#e8eaf0', fontSize: 13 }}
+                cursor={{ fill: 'rgba(219, 209, 209, 0.03)' }}
               />
-              <Bar dataKey="count" fill="#4f8ef7" radius={[6, 6, 0, 0]}>
-                {barData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+              <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                {barData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Pie Chart */}
+        {/* Pie Chart - Fixed text colors */}
         <div className="card">
           <div className="section-title" style={{ marginBottom: 20 }}>Asset Breakdown</div>
           <div className="pie-wrap">
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={3}>
-                  {pieData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
+                <Pie 
+                  data={pieData} 
+                  cx="50%" 
+                  cy="50%" 
+                  innerRadius={50} 
+                  outerRadius={80} 
+                  dataKey="value" 
+                  paddingAngle={3}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={{ stroke: '#6b7490', strokeWidth: 1 }}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: '#1c2030', border: '1px solid #252a38', borderRadius: 8, color: '#e8eaf0', fontSize: 13 }} />
+                <Tooltip 
+                  contentStyle={{ background: '#eeeef0', border: '1px solid #252a38', borderRadius: 8, color: '#e8eaf0', fontSize: 13 }}
+                  formatter={(value) => [`${value} assets`, 'Count']}
+                />
               </PieChart>
             </ResponsiveContainer>
             <div className="pie-legend">
               {pieData.map((d, i) => (
                 <div key={d.name} className="pie-legend-item">
-                  <span className="pie-dot" style={{ background: COLORS[i] }} />
-                  <span>{d.name}</span>
-                  <span className="pie-count">{d.value}</span>
+                  <span className="pie-dot" style={{ background: d.color }} />
+                  <span style={{ color: '#e8eaf0' }}>{d.name}</span>
+                  <span className="pie-count" style={{ color: '#e8eaf0' }}>{d.value}</span>
                 </div>
               ))}
             </div>
@@ -113,18 +182,18 @@ export default function Dashboard() {
             ) : (
               recentAllocs.map(a => (
                 <div key={a.id} className="recent-row">
-                  <div className="recent-avatar">{a.empName[0]}</div>
+                  <div className="recent-avatar">{a.empName?.[0] || '?'}</div>
                   <div className="recent-info">
-                    <div className="recent-name">{a.empName}</div>
-                    <div className="recent-meta">{a.assetId} · {a.project}</div>
+                    <div className="recent-name">{a.empName || 'Unknown'}</div>
+                    <div className="recent-meta">{a.assetId} · {a.project || 'No project'}</div>
                   </div>
                   <div className="recent-right">
                     <StatusBadge status={a.status} />
-                   <div className="recent-date">
-  {a.allocationDate
-    ? new Date(a.allocationDate).toLocaleDateString('en-CA')
-    : '-'}
-</div>
+                    <div className="recent-date">
+                      {a.allocationDate
+                        ? new Date(a.allocationDate).toLocaleDateString('en-CA')
+                        : '-'}
+                    </div>
                   </div>
                 </div>
               ))
