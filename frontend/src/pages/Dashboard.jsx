@@ -51,6 +51,29 @@ export default function Dashboard() {
 
   const recentAllocs = allocations.filter(a => a.status === 'Active').slice(0, 4);
 
+  // Custom Tooltip for charts with theme support
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: '8px',
+          padding: '8px 12px',
+          color: 'var(--text)'
+        }}>
+          <p style={{ margin: 0, fontWeight: 600 }}>{`${label}: ${payload[0].value}`}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Custom label for Pie chart with theme support
+  const renderCustomLabel = ({ name, percent }) => {
+    return `${name} ${(percent * 100).toFixed(0)}%`;
+  };
+
   return (
     <div className="fade-in">
       <div className="page-header">
@@ -114,12 +137,18 @@ export default function Dashboard() {
           <div className="section-title" style={{ marginBottom: 20 }}>Asset Distribution</div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={barData} barSize={32}>
-              <XAxis dataKey="name" tick={{ fill: '#e8eaf0', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#e8eaf0', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ background: '#e2e5f0', border: '1px solid #c0cae3', borderRadius: 8, color: '#e8eaf0', fontSize: 13 }}
-                cursor={{ fill: 'rgba(219, 209, 209, 0.03)' }}
+              <XAxis 
+                dataKey="name" 
+                tick={{ fill: 'var(--text)', fontSize: 12 }} 
+                axisLine={{ stroke: 'var(--border)' }} 
+                tickLine={{ stroke: 'var(--border)' }}
               />
+              <YAxis 
+                tick={{ fill: 'var(--text)', fontSize: 12 }} 
+                axisLine={{ stroke: 'var(--border)' }} 
+                tickLine={{ stroke: 'var(--border)' }}
+              />
+              <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                 {barData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
@@ -129,7 +158,7 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* Pie Chart - Fixed text colors */}
+        {/* Pie Chart - Fixed with theme variables */}
         <div className="card">
           <div className="section-title" style={{ marginBottom: 20 }}>Asset Breakdown</div>
           <div className="pie-wrap">
@@ -143,25 +172,22 @@ export default function Dashboard() {
                   outerRadius={80} 
                   dataKey="value" 
                   paddingAngle={3}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={{ stroke: '#6b7490', strokeWidth: 1 }}
+                  label={renderCustomLabel}
+                  labelLine={{ stroke: 'var(--text-muted)', strokeWidth: 1 }}
                 >
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ background: '#eeeef0', border: '1px solid #252a38', borderRadius: 8, color: '#e8eaf0', fontSize: 13 }}
-                  formatter={(value) => [`${value} assets`, 'Count']}
-                />
+                <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
             <div className="pie-legend">
               {pieData.map((d, i) => (
                 <div key={d.name} className="pie-legend-item">
                   <span className="pie-dot" style={{ background: d.color }} />
-                  <span style={{ color: '#e8eaf0' }}>{d.name}</span>
-                  <span className="pie-count" style={{ color: '#e8eaf0' }}>{d.value}</span>
+                  <span style={{ color: 'var(--text)' }}>{d.name}</span>
+                  <span className="pie-count" style={{ color: 'var(--text)' }}>{d.value}</span>
                 </div>
               ))}
             </div>

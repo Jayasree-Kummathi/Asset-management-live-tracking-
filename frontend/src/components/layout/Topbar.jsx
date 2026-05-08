@@ -6,6 +6,7 @@ import {
   AlertTriangle, Package, Clock,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import ThemeToggle from '../common/ThemeToggle';
 import './Topbar.css';
 
 const titles = {
@@ -185,6 +186,9 @@ export default function Topbar() {
         <div style={{ padding:'4px 10px', borderRadius:20, background:rb.bg, fontSize:12, fontWeight:600, color:rb.color }}>
           {rb.label}
         </div>
+
+        {/* Theme Toggle */}
+        <ThemeToggle />
 
         {/* Date */}
         <div className="topbar-date">

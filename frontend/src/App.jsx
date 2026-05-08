@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
+import { ThemeProvider } from './context/ThemeContext';
 
 import Sidebar        from './components/layout/Sidebar';
 import Topbar         from './components/layout/Topbar';
@@ -26,13 +27,14 @@ import AcceptanceTracker from './pages/AcceptanceTracker';
 import AccessoryRequests from './pages/AccessoryRequests';
 import NetworkAssets     from './pages/Networkassets';
 import LiveTracking      from './pages/LiveTracking';
-import AgentManager      from './pages/AgentManager'; 
-import SoftwarePush from './pages/Softwarepush';
-import AccessControl from './pages/Accesscontrol';
-
+import AgentManager      from './pages/AgentManager';
+import SoftwarePush      from './pages/Softwarepush';
+import AccessControl     from './pages/Accesscontrol';
+import LicenseManagement from './pages/Licensemanagement';
+import Employees         from './pages/Employees';
 import './styles/global.css';
 
-// ── Role guard component ──────────────────────────────────────────────────────
+// ── Role guard ────────────────────────────────────────────────────────────────
 function RequireRole({ roles, children }) {
   const { user } = useAuth();
   if (!roles.includes(user?.role)) return <Navigate to="/dashboard" replace />;
@@ -45,14 +47,9 @@ function ProtectedLayout() {
 
   if (loading) return (
     <div style={{
-      display:        'flex',
-      alignItems:     'center',
-      justifyContent: 'center',
-      height:         '100vh',
-      background:     '#0d0f14',
-      color:          '#4f8ef7',
-      fontFamily:     'monospace',
-      fontSize:       14,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      height: '100vh', background: '#0d0f14',
+      color: '#4f8ef7', fontFamily: 'monospace', fontSize: 14,
     }}>
       Loading…
     </div>
@@ -71,125 +68,117 @@ function ProtectedLayout() {
           <div className="page-content">
             <Routes>
 
-              {/* ── Employee-only routes ────────────────────────────────── */}
+              {/* ── Employee-only ───────────────────────────────────────── */}
               <Route path="/my-dashboard" element={<EmployeeDashboard />} />
               <Route path="/my-laptop"    element={<EmployeeDashboard />} />
 
-              {/* ── IT Staff + Admin routes ─────────────────────────────── */}
+              {/* ── Admin + IT Staff ────────────────────────────────────── */}
               <Route path="/dashboard" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <Dashboard />
                 </RequireRole>
               } />
-
               <Route path="/inventory" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <Inventory />
                 </RequireRole>
               } />
-
               <Route path="/allocate" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <AllocateLaptop />
                 </RequireRole>
               } />
-
               <Route path="/allocation-list" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <AllocationList />
                 </RequireRole>
               } />
-
               <Route path="/receive" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <ReceiveLaptop />
                 </RequireRole>
               } />
-
               <Route path="/swap" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <SwapLaptop />
                 </RequireRole>
               } />
-
               <Route path="/accessories" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <AccessoryRequests />
                 </RequireRole>
               } />
-
               <Route path="/acceptance-tracker" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <AcceptanceTracker />
                 </RequireRole>
               } />
-
               <Route path="/network-assets" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <NetworkAssets />
                 </RequireRole>
               } />
-
               <Route path="/live-tracking" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <LiveTracking />
                 </RequireRole>
               } />
 
-              {/* ── Admin-only routes ───────────────────────────────────── */}
+              {/* ── Employees — Admin + IT Staff ────────────────────────── */}
+              <Route path="/employees" element={
+                <RequireRole roles={['admin', 'it_staff']}>
+                  <Employees />
+                </RequireRole>
+              } />
+
+              {/* ── Admin only ──────────────────────────────────────────── */}
               <Route path="/repair" element={
                 <RequireRole roles={['admin']}>
                   <RepairAssets />
                 </RequireRole>
               } />
-
               <Route path="/scrap" element={
                 <RequireRole roles={['admin']}>
                   <ScrapAssets />
                 </RequireRole>
               } />
-
               <Route path="/reports" element={
                 <RequireRole roles={['admin']}>
                   <Reports />
                 </RequireRole>
               } />
-
               <Route path="/audit" element={
                 <RequireRole roles={['admin']}>
                   <AuditLogs />
                 </RequireRole>
               } />
-
               <Route path="/users" element={
                 <RequireRole roles={['admin']}>
                   <ManageUsers />
                 </RequireRole>
               } />
-
-              {/* Agent Manager — enable/disable agents, install tokens, software push */}
               <Route path="/agent-manager" element={
                 <RequireRole roles={['admin']}>
                   <AgentManager />
                 </RequireRole>
               } />
-
-               <Route path="/softwarepush" element={
+              <Route path="/softwarepush" element={
                 <RequireRole roles={['admin']}>
                   <SoftwarePush />
                 </RequireRole>
               } />
+              <Route path="/licenses" element={
+                <RequireRole roles={['admin']}>
+                  <LicenseManagement />
+                </RequireRole>
+              } />
+              <Route path="/access-control" element={
+                <RequireRole roles={['admin']}>
+                  <AccessControl />
+                </RequireRole>
+              } />
 
-              <Route
-  path="/access-control"
-  element={
-    <RequireRole roles={['admin']}>
-      <AccessControl />
-    </RequireRole>
-  }
-/>
-
-              {/* ── Default redirect based on role ──────────────────────── */}
+              {/* ── Default redirect ────────────────────────────────────── */}
               <Route path="*" element={
                 <Navigate to={isEmployee ? '/my-dashboard' : '/dashboard'} replace />
               } />
@@ -203,23 +192,7 @@ function ProtectedLayout() {
   );
 }
 
-// ── Root app ──────────────────────────────────────────────────────────────────
-export default function App() {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/"              element={<Homepage />} />
-          <Route path="/login"         element={<LoginWrapper />} />
-          <Route path="/accept/:token" element={<AcceptancePage />} />
-          <Route path="/*"             element={<ProtectedLayout />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
-  );
-}
-
-// ── Login wrapper — redirects if already logged in ────────────────────────────
+// ── Login wrapper ─────────────────────────────────────────────────────────────
 function LoginWrapper() {
   const { user, loading } = useAuth();
   if (loading) return null;
@@ -228,4 +201,22 @@ function LoginWrapper() {
     return <Navigate to="/dashboard" replace />;
   }
   return <Login />;
+}
+
+// ── Root app ──────────────────────────────────────────────────────────────────
+export default function App() {
+  return (
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/"              element={<Homepage />} />
+            <Route path="/login"         element={<LoginWrapper />} />
+            <Route path="/accept/:token" element={<AcceptancePage />} />
+            <Route path="/*"             element={<ProtectedLayout />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
+  );
 }

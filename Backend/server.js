@@ -53,7 +53,8 @@ app.use('/api/network-assets', require('./routes/Networkassets'));
 app.use('/api/agent',          require('./routes/agentRoute'));
 app.use('/api',                teamMembersRoutes);
 app.use('/card',               require('./routes/assetCardRoute'));
-
+app.use('/api/licenses', require('./routes/licenses'));
+app.use('/api/employees', require('./routes/employeeRoutes'));
 // ✅ FIXED ACCESS CONTROL ROUTE
 app.use('/api/access-control', require('./routes/accessControl'));
 

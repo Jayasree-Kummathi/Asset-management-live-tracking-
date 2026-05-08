@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   Shield, Plus, Edit2, X, Clock, Usb, Globe,
   AlertTriangle, CheckCircle, Mail, RefreshCw, Search,
-  Bell, Lock, Unlock, Link, Wifi,
+  Bell, Lock, Unlock, Link, Wifi, Download, FileText,
+  FileSpreadsheet, ChevronDown, Activity, Filter,
+  ChevronRight, Eye, Info, CheckCircle2, XCircle
 } from 'lucide-react';
 import './Accesscontrol.css';
 
@@ -21,12 +23,93 @@ const apiFetch = async (path, opts = {}) => {
   return data;
 };
 
+const downloadFile = async (url, filename) => {
+  const token = localStorage.getItem('token');
+  try {
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
+    const blob = await response.blob();
+    const link = document.createElement('a');
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(objectUrl);
+  } catch (error) {
+    console.error('Download error:', error);
+    throw error;
+  }
+};
+
 const daysLeft = (expiryDate) => {
   if (!expiryDate) return null;
   return Math.ceil((new Date(expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
 };
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-CA') : '—';
+
+const timeAgo = (dateStr) => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+};
+
+// ── Toast Notification System ─────────────────────────────────────────────────
+let toastId = 0;
+const toastListeners = new Set();
+
+export const toast = {
+  _emit(msg) { toastListeners.forEach(fn => fn(msg)); },
+  success(text, detail) { this._emit({ id: ++toastId, type: 'success', text, detail }); },
+  error(text, detail)   { this._emit({ id: ++toastId, type: 'error',   text, detail }); },
+  warn(text, detail)    { this._emit({ id: ++toastId, type: 'warn',    text, detail }); },
+  info(text, detail)    { this._emit({ id: ++toastId, type: 'info',    text, detail }); },
+};
+
+function ToastContainer() {
+  const [toasts, setToasts] = useState([]);
+
+  useEffect(() => {
+    const handler = (msg) => {
+      setToasts(prev => [msg, ...prev].slice(0, 5));
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== msg.id)), 4500);
+    };
+    toastListeners.add(handler);
+    return () => toastListeners.delete(handler);
+  }, []);
+
+  const icons = {
+    success: <CheckCircle2 size={15} />,
+    error:   <XCircle size={15} />,
+    warn:    <AlertTriangle size={15} />,
+    info:    <Info size={15} />,
+  };
+
+  return (
+    <div className="ac-toast-container">
+      {toasts.map(t => (
+        <div key={t.id} className={`ac-toast ac-toast-${t.type}`}>
+          <span className="ac-toast-icon">{icons[t.type]}</span>
+          <div className="ac-toast-body">
+            <span className="ac-toast-text">{t.text}</span>
+            {t.detail && <span className="ac-toast-detail">{t.detail}</span>}
+          </div>
+          <button className="ac-toast-close" onClick={() => setToasts(p => p.filter(x => x.id !== t.id))}>
+            <X size={12} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const StatusChip = ({ days }) => {
   if (days === null) return <span className="ac-chip ac-chip-none">No Expiry</span>;
@@ -62,6 +145,168 @@ const EMPTY_FORM = {
   accessType: 'website', accessValue: '',
   durationDays: 30, customExpiry: '', notes: '',
 };
+
+// ── Audit action meta ─────────────────────────────────────────────────────────
+const auditMeta = (action) => {
+  const map = {
+    ACCESS_GRANTED:       { color: 'green',  icon: <Unlock size={12} />,       label: 'Granted' },
+    ACCESS_REVOKED:       { color: 'red',    icon: <Lock size={12} />,         label: 'Revoked' },
+    ACCESS_EXPIRED:       { color: 'amber',  icon: <Clock size={12} />,        label: 'Expired' },
+    ACCESS_UPDATED:       { color: 'blue',   icon: <Edit2 size={12} />,        label: 'Updated' },
+    ACCESS_REMINDER_SENT: { color: 'purple', icon: <Mail size={12} />,         label: 'Reminder' },
+    ACCESS_REMINDER_AUTO: { color: 'purple', icon: <Bell size={12} />,         label: 'Auto Reminder' },
+  };
+  return map[action] || { color: 'muted', icon: <Activity size={12} />, label: action };
+};
+
+// ── Audit Log Panel ───────────────────────────────────────────────────────────
+function AuditPanel({ onClose }) {
+  const [logs,       setLogs]       = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [search,     setSearch]     = useState('');
+  const [actionFilt, setActionFilt] = useState('all');
+  const [page,       setPage]       = useState(1);
+  const [total,      setTotal]      = useState(0);
+  const LIMIT = 30;
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        category: 'access_control',
+        limit: LIMIT,
+        page,
+        ...(search ? { search } : {}),
+      });
+      const data = await apiFetch(`/audit?${params}`);
+      setLogs(data.data || []);
+      setTotal(data.total || 0);
+    } catch (err) {
+      toast.error('Failed to load audit logs', err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, page]);
+
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  // Reset page on filter change
+  useEffect(() => { setPage(1); }, [search, actionFilt]);
+
+  const filtered = actionFilt === 'all'
+    ? logs
+    : logs.filter(l => l.action === actionFilt);
+
+  const actionTypes = [...new Set(logs.map(l => l.action))];
+
+  return (
+    <div className="ac-overlay" onClick={onClose}>
+      <div className="ac-audit-panel" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="ac-audit-header">
+          <div className="ac-audit-title">
+            <div className="ac-audit-title-icon"><Activity size={16} /></div>
+            <div>
+              <h2>Audit Log</h2>
+              <p>{total} access events recorded</p>
+            </div>
+          </div>
+          <button className="ac-icon-btn" onClick={onClose}><X size={16} /></button>
+        </div>
+
+        {/* Filters */}
+        <div className="ac-audit-filters">
+          <div className="ac-audit-search">
+            <Search size={13} />
+            <input
+              placeholder="Search by name, action, details…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="ac-audit-type-scroll">
+            <button
+              className={`ac-audit-type-btn${actionFilt === 'all' ? ' active' : ''}`}
+              onClick={() => setActionFilt('all')}
+            >All</button>
+            {actionTypes.map(a => {
+              const m = auditMeta(a);
+              return (
+                <button
+                  key={a}
+                  className={`ac-audit-type-btn ac-audit-type-${m.color}${actionFilt === a ? ' active' : ''}`}
+                  onClick={() => setActionFilt(a)}
+                >
+                  {m.icon} {m.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Log list */}
+        <div className="ac-audit-list">
+          {loading ? (
+            <div className="ac-audit-loading">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="ac-audit-skeleton" style={{ animationDelay: `${i * 60}ms` }} />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="ac-audit-empty">
+              <Activity size={32} />
+              <p>No audit events found</p>
+            </div>
+          ) : (
+            filtered.map((log, idx) => {
+              const meta = auditMeta(log.action);
+              return (
+                <div key={log.id} className={`ac-audit-item ac-audit-item-${meta.color}`}
+                  style={{ animationDelay: `${idx * 20}ms` }}>
+                  <div className={`ac-audit-dot ac-audit-dot-${meta.color}`}>
+                    {meta.icon}
+                  </div>
+                  <div className="ac-audit-content">
+                    <div className="ac-audit-row1">
+                      <span className={`ac-audit-badge ac-audit-badge-${meta.color}`}>
+                        {meta.label}
+                      </span>
+                      <span className="ac-audit-time">{timeAgo(log.created_at)}</span>
+                    </div>
+                    <div className="ac-audit-detail">{log.detail}</div>
+                    <div className="ac-audit-meta">
+                      <span>by <strong>{log.performed_by || 'System'}</strong></span>
+                      <span className="ac-audit-ts">
+                        {new Date(log.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Pagination */}
+        {total > LIMIT && (
+          <div className="ac-audit-pagination">
+            <button
+              className="ac-btn ac-btn-secondary"
+              disabled={page === 1}
+              onClick={() => setPage(p => p - 1)}
+            >← Prev</button>
+            <span>Page {page} of {Math.ceil(total / LIMIT)}</span>
+            <button
+              className="ac-btn ac-btn-secondary"
+              disabled={page >= Math.ceil(total / LIMIT)}
+              onClick={() => setPage(p => p + 1)}
+            >Next →</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Grant / Edit Modal ────────────────────────────────────────────────────────
 function GrantModal({ onClose, onGranted, editing }) {
@@ -106,12 +351,16 @@ function GrantModal({ onClose, onGranted, editing }) {
       };
       if (editing) {
         await apiFetch(`/access-control/${editing.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        toast.success('Access updated', `${form.empName}'s access has been updated`);
       } else {
         await apiFetch('/access-control', { method: 'POST', body: JSON.stringify(payload) });
+        toast.success('Access granted', `${form.empName} now has ${getTypeLabel(form.accessType)}`);
       }
       onGranted();
       onClose();
-    } catch (err) { alert(err.message); }
+    } catch (err) {
+      toast.error('Failed', err.message);
+    }
     finally { setSaving(false); }
   };
 
@@ -165,7 +414,6 @@ function GrantModal({ onClose, onGranted, editing }) {
               ))}
             </div>
 
-            {/* ── Custom URL field — only shown when type = custom ── */}
             {form.accessType === 'custom' && (
               <div className="ac-form-group" style={{ marginTop: 12 }}>
                 <label>Website / Resource URL *</label>
@@ -250,9 +498,12 @@ function RevokeModal({ record, onClose, onRevoked }) {
     setLoading(true);
     try {
       await apiFetch(`/access-control/${record.id}/revoke`, { method: 'PUT' });
+      toast.warn('Access revoked', `${record.emp_name}'s ${getTypeLabel(record.access_type)} has been revoked`);
       onRevoked();
       onClose();
-    } catch (err) { alert(err.message); }
+    } catch (err) {
+      toast.error('Revoke failed', err.message);
+    }
     finally { setLoading(false); }
   };
   return (
@@ -286,6 +537,160 @@ function RevokeModal({ record, onClose, onRevoked }) {
   );
 }
 
+// ── Report Modal ──────────────────────────────────────────────────────────────
+function ReportModal({ onClose }) {
+  const [format, setFormat] = useState('excel');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      let url = `${API}/access-control/report/excel`;
+      if (dateRange.start && dateRange.end) {
+        url += `?start=${dateRange.start}&end=${dateRange.end}`;
+      }
+      const filename = `access-control-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+      await downloadFile(url, filename);
+      toast.success('Report downloaded', filename);
+      onClose();
+    } catch (err) {
+      toast.error('Failed to generate report', err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="ac-overlay" onClick={onClose}>
+      <div className="ac-modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()}>
+        <div className="ac-modal-header">
+          <div className="ac-modal-title">
+            <FileSpreadsheet size={16} />
+            Export Access Control Report
+          </div>
+          <button className="ac-icon-btn" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="ac-modal-body">
+          <div className="ac-section-label">Report Format</div>
+          <div className="ac-format-options">
+            <button
+              className={`ac-format-btn ${format === 'excel' ? 'active' : ''}`}
+              onClick={() => setFormat('excel')}
+            >
+              <FileSpreadsheet size={18} />
+              Excel (.xlsx)
+              <small>Multi-sheet detailed report</small>
+            </button>
+            <button
+              className={`ac-format-btn ${format === 'csv' ? 'active' : ''}`}
+              onClick={() => setFormat('csv')}
+            >
+              <FileText size={18} />
+              CSV (.csv)
+              <small>Simple spreadsheet format</small>
+            </button>
+          </div>
+
+          <div className="ac-section-label" style={{ marginTop: 20 }}>Date Range (Optional)</div>
+          <div className="ac-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <div className="ac-form-group">
+              <label>Start Date</label>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={e => setDateRange({ ...dateRange, start: e.target.value })}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+            <div className="ac-form-group">
+              <label>End Date</label>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={e => setDateRange({ ...dateRange, end: e.target.value })}
+                min={dateRange.start}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+
+          <div className="ac-info-box">
+            <Shield size={14} />
+            <span>The report includes: Access records, employee details, expiry status, department breakdown, and statistics</span>
+          </div>
+
+          <div className="ac-modal-actions">
+            <button className="ac-btn ac-btn-secondary" onClick={onClose}>Cancel</button>
+            <button className="ac-btn ac-btn-primary" onClick={handleGenerate} disabled={generating}>
+              <Download size={14} />
+              {generating ? 'Generating...' : `Generate ${format.toUpperCase()} Report`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Notification Bell ─────────────────────────────────────────────────────────
+function NotificationBell({ records }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  const alerts = records.filter(r => {
+    const d = daysLeft(r.expiry_date);
+    return r.status === 'active' && d !== null && d >= 0 && d <= 7;
+  }).sort((a, b) => daysLeft(a.expiry_date) - daysLeft(b.expiry_date));
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="ac-notif-wrap" ref={ref}>
+      <button className="ac-notif-bell" onClick={() => setOpen(o => !o)}>
+        <Bell size={16} />
+        {alerts.length > 0 && <span className="ac-notif-badge">{alerts.length}</span>}
+      </button>
+      {open && (
+        <div className="ac-notif-dropdown">
+          <div className="ac-notif-header">
+            <Bell size={13} /> Expiring Soon
+            <span className="ac-notif-count">{alerts.length}</span>
+          </div>
+          {alerts.length === 0 ? (
+            <div className="ac-notif-empty">
+              <CheckCircle size={22} />
+              <p>All access is healthy</p>
+            </div>
+          ) : (
+            <div className="ac-notif-list">
+              {alerts.map(r => {
+                const d = daysLeft(r.expiry_date);
+                return (
+                  <div key={r.id} className={`ac-notif-item${d <= 2 ? ' ac-notif-urgent' : ''}`}>
+                    <div className="ac-notif-avatar">{r.emp_name?.[0] || '?'}</div>
+                    <div className="ac-notif-info">
+                      <div className="ac-notif-name">{r.emp_name}</div>
+                      <div className="ac-notif-sub">{getTypeLabel(r.access_type)}</div>
+                    </div>
+                    <div className={`ac-notif-days${d <= 2 ? ' urgent' : ''}`}>
+                      {d === 0 ? 'Today' : `${d}d`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AccessControl() {
   const { user }   = useAuth();
@@ -296,9 +701,12 @@ export default function AccessControl() {
   const [filter,   setFilter]   = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [showGrant,  setShowGrant]  = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [showAudit,  setShowAudit]  = useState(false);
   const [editing,    setEditing]    = useState(null);
   const [revoking,   setRevoking]   = useState(null);
   const [sending,    setSending]    = useState(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   useEffect(() => {
     if (user && user.role !== 'admin') navigate('/dashboard');
@@ -309,25 +717,46 @@ export default function AccessControl() {
     try {
       const data = await apiFetch('/access-control');
       setRecords(data.data || []);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    } catch (err) {
+      toast.error('Failed to load records', err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
-  const sendReminderEmail = async (id) => {
+  const sendReminderEmail = async (id, empName) => {
     setSending(id);
     try {
       await apiFetch(`/access-control/${id}/remind`, { method: 'POST' });
-      alert('Reminder email sent successfully');
-    } catch (err) { alert(err.message); }
-    finally { setSending(null); }
+      toast.success('Reminder sent', `Email sent to ${empName}`);
+    } catch (err) {
+      toast.error('Reminder failed', err.message);
+    } finally { setSending(null); }
+  };
+
+  const handleQuickExport = async (format) => {
+    try {
+      let url, filename;
+      if (format === 'excel') {
+        url = `${API}/access-control/report/excel`;
+        filename = `access-control-report-${new Date().toISOString().split('T')[0]}.xlsx`;
+      } else {
+        url = `${API}/access-control/export/csv`;
+        filename = `access-control-${new Date().toISOString().split('T')[0]}.csv`;
+      }
+      await downloadFile(url, filename);
+      toast.success(`${format.toUpperCase()} exported`, filename);
+      setShowExportMenu(false);
+    } catch (err) {
+      toast.error('Export failed', err.message);
+    }
   };
 
   const filtered = records.filter(r => {
     const matchSearch = !search || [r.emp_id, r.emp_name, r.emp_email, r.department, r.access_value]
       .some(v => v?.toLowerCase().includes(search.toLowerCase()));
-
     const days = daysLeft(r.expiry_date);
     const matchFilter =
       filter === 'all'      ? true :
@@ -335,7 +764,6 @@ export default function AccessControl() {
       filter === 'expiring' ? (days !== null && days >= 0 && days <= 7) :
       filter === 'expired'  ? (r.status === 'expired' || (days !== null && days < 0)) :
       filter === 'revoked'  ? r.status === 'revoked' : true;
-
     const matchType = typeFilter === 'all' || r.access_type === typeFilter;
     return matchSearch && matchFilter && matchType;
   });
@@ -351,6 +779,8 @@ export default function AccessControl() {
 
   return (
     <div className="ac-page fade-in">
+      <ToastContainer />
+
       {/* ── Header ── */}
       <div className="ac-page-header">
         <div className="ac-header-left">
@@ -360,9 +790,41 @@ export default function AccessControl() {
             <p>Manage website, USB &amp; custom access for employees</p>
           </div>
         </div>
-        <button className="ac-btn ac-btn-primary" onClick={() => { setEditing(null); setShowGrant(true); }}>
-          <Plus size={15} /> Grant Access
-        </button>
+        <div className="ac-header-actions">
+          {/* Notification Bell */}
+          <NotificationBell records={records} />
+
+          {/* Audit Log Button */}
+          <button className="ac-btn ac-btn-ghost" onClick={() => setShowAudit(true)} title="View Audit Log">
+            <Activity size={15} /> Audit Log
+          </button>
+
+          <div className="ac-export-dropdown">
+            <button
+              className="ac-btn ac-btn-secondary"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+            >
+              <Download size={15} /> Export <ChevronDown size={14} />
+            </button>
+            {showExportMenu && (
+              <div className="ac-dropdown-menu">
+                <button onClick={() => handleQuickExport('excel')}>
+                  <FileSpreadsheet size={14} /> Export as Excel
+                </button>
+                <button onClick={() => handleQuickExport('csv')}>
+                  <FileText size={14} /> Export as CSV
+                </button>
+                <hr />
+                <button onClick={() => { setShowReport(true); setShowExportMenu(false); }}>
+                  <Download size={14} /> Advanced Report Options
+                </button>
+              </div>
+            )}
+          </div>
+          <button className="ac-btn ac-btn-primary" onClick={() => { setEditing(null); setShowGrant(true); }}>
+            <Plus size={15} /> Grant Access
+          </button>
+        </div>
       </div>
 
       {/* ── Stats ── */}
@@ -467,7 +929,6 @@ export default function AccessControl() {
                       isCritical              ? 'ac-row-blink'    : '',
                     ].filter(Boolean).join(' ')}>
 
-                    {/* Employee */}
                     <td>
                       <div className="ac-emp-cell">
                         <div className="ac-avatar">{r.emp_name?.[0] || '?'}</div>
@@ -479,7 +940,6 @@ export default function AccessControl() {
                       </div>
                     </td>
 
-                    {/* Access Type badge */}
                     <td>
                       <span className={`ac-type-tag ac-type-${r.access_type}`}>
                         {getTypeIcon(r.access_type)}
@@ -487,10 +947,8 @@ export default function AccessControl() {
                       </span>
                     </td>
 
-                    {/* ── Resource / URL column — FIXED ── */}
                     <td>
                       {r.access_type === 'custom' ? (
-                        // Custom always shows the URL — this was the bug
                         <div className="ac-resource-cell">
                           <Link size={12} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                           <span className="ac-resource-url">
@@ -517,12 +975,10 @@ export default function AccessControl() {
                       )}
                     </td>
 
-                    {/* Granted date */}
                     <td style={{ fontSize: 12, fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>
                       {formatDate(r.created_at)}
                     </td>
 
-                    {/* Expiry */}
                     <td>
                       <div style={{ fontFamily: 'var(--mono)', fontSize: 12, marginBottom: 4 }}>
                         {r.expiry_date ? formatDate(r.expiry_date) : '—'}
@@ -530,7 +986,6 @@ export default function AccessControl() {
                       <StatusChip days={days} />
                     </td>
 
-                    {/* Status badge */}
                     <td>
                       {isRevoked ? (
                         <span className="ac-status-badge ac-status-revoked"><Lock size={11} /> Revoked</span>
@@ -543,32 +998,27 @@ export default function AccessControl() {
                       )}
                     </td>
 
-                    {/* Notes */}
                     <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 140 }}>
                       {r.notes || '—'}
                     </td>
 
-                    {/* ── Actions — FIXED: always visible based on status ── */}
                     <td>
                       <div className="ac-actions">
                         {isActive && (
                           <>
-                            {/* Remind — only if has expiry */}
                             {r.expiry_date && (
                               <button className="ac-action-btn" title="Send Reminder"
-                                onClick={() => sendReminderEmail(r.id)}
+                                onClick={() => sendReminderEmail(r.id, r.emp_name)}
                                 disabled={sending === r.id}>
                                 {sending === r.id
                                   ? <RefreshCw size={13} className="ac-spin" />
                                   : <Mail size={13} />}
                               </button>
                             )}
-                            {/* Edit */}
                             <button className="ac-action-btn" title="Edit Access"
                               onClick={() => { setEditing(r); setShowGrant(true); }}>
                               <Edit2 size={13} />
                             </button>
-                            {/* Revoke */}
                             <button className="ac-action-btn ac-action-danger" title="Revoke Access"
                               onClick={() => setRevoking(r)}>
                               <Lock size={13} />
@@ -576,7 +1026,6 @@ export default function AccessControl() {
                           </>
                         )}
                         {(isRevoked || isExpired) && (
-                          /* Re-grant */
                           <button className="ac-action-btn ac-action-success" title="Re-grant Access"
                             onClick={() => { setEditing(r); setShowGrant(true); }}>
                             <Unlock size={13} />
@@ -606,6 +1055,12 @@ export default function AccessControl() {
           onClose={() => setRevoking(null)}
           onRevoked={fetchRecords}
         />
+      )}
+      {showReport && (
+        <ReportModal onClose={() => setShowReport(false)} />
+      )}
+      {showAudit && (
+        <AuditPanel onClose={() => setShowAudit(false)} />
       )}
     </div>
   );

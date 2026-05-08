@@ -1,0 +1,665 @@
+/* ═══════════════════════════════════════════════════════════
+   LicenseManagement.css — matches existing app dark theme
+   ═══════════════════════════════════════════════════════════ */
+
+.lic-page { padding-bottom: 48px; }
+
+/* ── Header ── */
+.lic-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.lic-header-left { display: flex; align-items: center; gap: 14px; }
+.lic-header-icon {
+  width: 44px; height: 44px;
+  background: var(--accent-glow, rgba(99,102,241,0.12));
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+}
+.lic-page-header h1 { font-size: 20px; font-weight: 800; margin: 0 0 2px; }
+.lic-page-header p  { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+/* ── Stats ── */
+.lic-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@keyframes licStatIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.lic-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  animation: licStatIn 0.32s cubic-bezier(0.22,1,0.36,1) both;
+  transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+  cursor: default;
+}
+.lic-stat::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  opacity: 0; transition: opacity 0.2s;
+}
+.lic-stat:hover { transform: translateY(-2px); }
+.lic-stat:hover::before { opacity: 1; }
+
+.lic-stat-value { font-size: 26px; font-weight: 800; font-family: var(--mono); line-height: 1; margin-bottom: 4px; }
+.lic-stat-label { font-size: 11.5px; color: var(--text-muted); font-weight: 500; }
+
+.lic-stat-blue::before   { background: linear-gradient(90deg,transparent,var(--accent),transparent); }
+.lic-stat-blue:hover     { border-color: var(--accent); box-shadow: 0 4px 20px rgba(99,102,241,0.18); }
+.lic-stat-blue   .lic-stat-value { color: var(--accent); }
+
+.lic-stat-green::before  { background: linear-gradient(90deg,transparent,var(--green),transparent); }
+.lic-stat-green:hover    { border-color: var(--green); box-shadow: 0 4px 20px rgba(52,211,153,0.18); }
+.lic-stat-green  .lic-stat-value { color: var(--green); }
+
+.lic-stat-amber::before  { background: linear-gradient(90deg,transparent,#f59e0b,transparent); }
+.lic-stat-amber:hover    { border-color: #f59e0b; box-shadow: 0 4px 20px rgba(251,191,36,0.18); }
+.lic-stat-amber  .lic-stat-value { color: #f59e0b; }
+
+.lic-stat-red::before    { background: linear-gradient(90deg,transparent,var(--red),transparent); }
+.lic-stat-red:hover      { border-color: var(--red); box-shadow: 0 4px 20px rgba(248,113,113,0.18); }
+.lic-stat-red    .lic-stat-value { color: var(--red); }
+
+.lic-stat-purple::before { background: linear-gradient(90deg,transparent,#a78bfa,transparent); }
+.lic-stat-purple:hover   { border-color: #a78bfa; box-shadow: 0 4px 20px rgba(167,139,250,0.18); }
+.lic-stat-purple .lic-stat-value { color: #a78bfa; }
+
+@keyframes licPulse {
+  0%,100% { box-shadow: none; }
+  50%      { box-shadow: 0 0 18px 4px rgba(248,113,113,0.3); }
+}
+.lic-stat-pulse { animation: licStatIn 0.32s cubic-bezier(0.22,1,0.36,1) both, licPulse 2s ease-in-out infinite; }
+
+/* ── Alert ── */
+.lic-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.3);
+  border-left: 3px solid #f59e0b;
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: #f59e0b;
+  margin-bottom: 16px;
+}
+.lic-alert-red {
+  background: var(--red-bg);
+  border-color: rgba(248,113,113,0.3);
+  border-left-color: var(--red);
+  color: var(--red);
+}
+
+/* ── Tabs ── */
+.lic-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.lic-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+}
+.lic-tab:hover { color: var(--text); }
+.lic-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+.lic-tab-count {
+  background: var(--surface2);
+  padding: 1px 7px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: var(--mono);
+}
+.lic-tab.active .lic-tab-count { background: var(--accent-glow); color: var(--accent); }
+
+/* ── Toolbar ── */
+.lic-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.lic-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0 12px;
+  flex: 1;
+  max-width: 320px;
+  color: var(--text-muted);
+  transition: border-color 0.15s;
+}
+.lic-search:focus-within { border-color: var(--accent); }
+.lic-search input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-size: 13px; padding: 9px 0;
+}
+.lic-cat-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.lic-cat-pill {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.lic-cat-pill.active, .lic-cat-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-glow, rgba(99,102,241,0.08));
+}
+
+/* ── Loading / Empty ── */
+.lic-loading { display: flex; flex-direction: column; gap: 10px; }
+@keyframes licShimmer {
+  0% { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.lic-skeleton {
+  height: 72px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+  background-size: 1200px 100%;
+  animation: licShimmer 1.4s linear infinite;
+}
+.lic-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding: 60px 20px; color: var(--text-muted); text-align: center;
+}
+.lic-empty p { font-size: 14px; margin: 0; }
+
+/* ── License Cards ── */
+.lic-card-list { display: flex; flex-direction: column; gap: 8px; }
+
+@keyframes licCardIn {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.lic-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: licCardIn 0.28s cubic-bezier(0.22,1,0.36,1) both;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.lic-card:hover { border-color: var(--border2, rgba(255,255,255,0.1)); }
+.lic-card-expanded { border-color: var(--accent) !important; box-shadow: 0 0 0 1px rgba(99,102,241,0.15); }
+.lic-card-full { border-color: rgba(248,113,113,0.4) !important; }
+
+.lic-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.lic-card-header:hover { background: var(--surface2, rgba(255,255,255,0.02)); }
+
+.lic-card-icon {
+  width: 48px; height: 48px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.lic-card-info { flex: 1; min-width: 0; }
+.lic-card-name { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.lic-card-meta { display: flex; align-items: center; gap: 8px; }
+
+.lic-category-tag {
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  border-radius: 20px; background: var(--surface2); color: var(--text-muted);
+}
+.lic-vendor { font-size: 11.5px; color: var(--text-muted); }
+
+.lic-card-stats {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;
+}
+.lic-seat-info { display: flex; align-items: baseline; gap: 2px; }
+.lic-seat-used  { font-size: 18px; font-weight: 800; font-family: var(--mono); }
+.lic-seat-sep   { font-size: 14px; color: var(--text-muted); }
+.lic-seat-total { font-size: 14px; font-weight: 600; color: var(--text-muted); font-family: var(--mono); }
+.lic-seat-label { font-size: 11px; color: var(--text-muted); margin-left: 4px; }
+.lic-expiry { display: flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; }
+
+.lic-seat-bar-wrap { flex: 0 0 100px; }
+.lic-seat-bar { height: 4px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.lic-seat-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+
+.lic-card-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.lic-expand-arrow { color: var(--text-muted); transition: transform 0.22s cubic-bezier(0.22,1,0.36,1); }
+
+/* ── Assignees panel ── */
+@keyframes licExpand {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: 800px; }
+}
+.lic-assignees {
+  border-top: 1px solid var(--border);
+  padding: 14px 16px;
+  animation: licExpand 0.25s cubic-bezier(0.22,1,0.36,1) both;
+}
+.lic-assignees-header {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 700; color: var(--text-muted);
+  margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.lic-auto-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; padding: 2px 7px; border-radius: 20px;
+  background: rgba(251,191,36,0.12); color: #f59e0b; font-weight: 700;
+}
+.lic-no-assignees { color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px 0; }
+.lic-assignee-list { display: flex; flex-direction: column; gap: 1px; }
+
+.lic-assignee-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--radius);
+  transition: background 0.12s;
+}
+.lic-assignee-row:hover { background: var(--surface2); }
+.lic-assignee-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #818cf8);
+  color: #fff; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.lic-assignee-info { flex: 1; min-width: 0; }
+.lic-assignee-name { font-size: 13px; font-weight: 600; }
+.lic-assignee-meta { font-size: 11.5px; color: var(--text-muted); }
+.lic-assignee-email { opacity: 0.7; }
+.lic-assignee-date { font-size: 11px; color: var(--text-muted); font-family: var(--mono); flex-shrink: 0; }
+
+/* ── Employee table ── */
+.lic-emp-table-wrap {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.lic-emp-table { width: 100%; border-collapse: collapse; }
+.lic-emp-table th {
+  padding: 10px 14px; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2, rgba(255,255,255,0.02)); text-align: left;
+}
+.lic-emp-table td {
+  padding: 11px 14px; border-bottom: 1px solid var(--border);
+  vertical-align: middle; font-size: 13px;
+}
+.lic-emp-table tr:last-child td { border-bottom: none; }
+.lic-emp-table tbody tr { transition: background 0.12s; }
+.lic-emp-table tbody tr:hover { background: var(--surface2); }
+.lic-emp-cell { display: flex; align-items: center; gap: 10px; }
+
+.lic-count-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent-glow); color: var(--accent);
+  font-size: 12px; font-weight: 800; font-family: var(--mono);
+}
+
+.lic-license-icons { display: flex; flex-wrap: wrap; gap: 4px; }
+.lic-mini-icon {
+  width: 28px; height: 28px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; cursor: default;
+}
+.lic-mini-more {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--surface2); color: var(--text-muted);
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Modal ── */
+.lic-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  animation: licFadeIn 0.18s ease;
+}
+@keyframes licFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.lic-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  animation: licModalIn 0.22s cubic-bezier(0.22,1,0.36,1);
+}
+@keyframes licModalIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.lic-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+.lic-modal-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 700; color: var(--accent);
+}
+.lic-modal-body { padding: 22px; }
+.lic-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+/* ── Form ── */
+.lic-form-group { display: flex; flex-direction: column; gap: 5px; }
+.lic-form-group label {
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+}
+.lic-input, .lic-textarea {
+  background: var(--surface2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text); font-size: 13px;
+  padding: 8px 12px; outline: none;
+  transition: border-color 0.15s;
+  width: 100%; box-sizing: border-box;
+  font-family: inherit;
+}
+.lic-input:focus, .lic-textarea:focus { border-color: var(--accent); }
+.lic-textarea { resize: vertical; }
+.lic-emoji-input { text-align: center; font-size: 20px; padding: 6px; }
+.lic-color-input { padding: 4px; height: 38px; cursor: pointer; }
+
+.lic-form-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-end; }
+.lic-form-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+
+/* ── Catalog ── */
+.lic-catalog-wrap { margin-bottom: 16px; }
+.lic-catalog-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  margin-top: 10px; max-height: 200px; overflow-y: auto;
+  padding: 4px;
+}
+.lic-catalog-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); cursor: pointer; font-size: 11px;
+  color: var(--text-muted); text-align: center;
+  transition: all 0.15s;
+}
+.lic-catalog-item:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+/* ── Toggle switch ── */
+.lic-toggle-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px; border: 1px solid var(--border);
+  border-radius: var(--radius); cursor: pointer; margin-bottom: 4px;
+  background: var(--surface2);
+}
+.lic-toggle-switch {
+  width: 38px; height: 22px; border-radius: 11px;
+  background: var(--border); position: relative;
+  transition: background 0.2s; flex-shrink: 0; cursor: pointer;
+}
+.lic-toggle-switch.active { background: var(--accent); }
+.lic-toggle-knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%; background: #fff;
+  transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.lic-toggle-switch.active .lic-toggle-knob { transform: translateX(16px); }
+.lic-toggle-label { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 5px; color: var(--text); }
+.lic-toggle-desc  { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── Mode tabs (assign modal) ── */
+.lic-mode-tabs { display: flex; gap: 0; margin-bottom: 14px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.lic-mode-tab {
+  flex: 1; padding: 9px; background: none; border: none;
+  color: var(--text-muted); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.15s;
+}
+.lic-mode-tab.active { background: var(--accent); color: #fff; font-weight: 600; }
+
+/* ── Employee list in assign modal ── */
+.lic-search-box {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0 12px; margin-bottom: 10px;
+  color: var(--text-muted);
+}
+.lic-search-box:focus-within { border-color: var(--accent); }
+.lic-search-box input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-size: 13px; padding: 8px 0;
+}
+.lic-emp-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.lic-emp-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px; }
+.lic-emp-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius); cursor: pointer;
+  transition: all 0.15s; background: var(--surface);
+}
+.lic-emp-item input[type="radio"] { display: none; }
+.lic-emp-item:hover { border-color: var(--accent); background: var(--accent-glow); }
+.lic-emp-item.selected { border-color: var(--accent); background: var(--accent-glow); }
+.lic-emp-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #818cf8);
+  color: #fff; font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.lic-emp-name { font-size: 13.5px; font-weight: 600; }
+.lic-emp-meta { font-size: 11.5px; color: var(--text-muted); }
+
+/* ── Employee licenses modal ── */
+.lic-emp-avatar-lg {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #818cf8);
+  color: #fff; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.lic-emp-license-list { display: flex; flex-direction: column; gap: 8px; }
+.lic-emp-license-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.lic-emp-license-name { font-size: 13.5px; font-weight: 600; flex: 1; }
+.lic-emp-license-cat  { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.lic-emp-license-expiry { display: flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; }
+
+/* ── Buttons ── */
+.lic-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: var(--radius);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 1px solid transparent; transition: all 0.15s;
+}
+.lic-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.lic-btn-primary  { background: var(--accent); color: #fff; border-color: var(--accent); }
+.lic-btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+.lic-btn-secondary { background: var(--surface); border-color: var(--border); color: var(--text); }
+.lic-btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.lic-btn-sm { padding: 5px 12px; font-size: 12px; }
+
+.lic-icon-btn {
+  width: 30px; height: 30px; border-radius: 7px;
+  border: 1px solid var(--border); background: none; color: var(--text-muted);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.lic-icon-btn:hover       { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+.lic-icon-danger:hover    { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .lic-stats { grid-template-columns: repeat(3,1fr); }
+  .lic-catalog-grid { grid-template-columns: repeat(3,1fr); }
+}
+@media (max-width: 600px) {
+  .lic-stats { grid-template-columns: repeat(2,1fr); }
+  .lic-form-grid2 { grid-template-columns: 1fr; }
+  .lic-catalog-grid { grid-template-columns: repeat(2,1fr); }
+  .lic-card-stats { display: none; }
+}
+
+/* Header Actions */
+.lic-header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Export Dropdown */
+.lic-export-dropdown {
+  position: relative;
+}
+
+.lic-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.lic-dropdown-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.lic-dropdown-menu button:hover {
+  background: #f3f4f6;
+}
+
+/* Format Options */
+.lic-format-options {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.lic-format-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lic-format-btn.active {
+  border-color: var(--accent);
+  background: #f0fdf4;
+}
+
+.lic-format-btn small {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+/* Info Box */
+.lic-info-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: #f0fdf4;
+  border-radius: 8px;
+  margin: 16px 0;
+  font-size: 12px;
+  color: #166534;
+}
+
+/* Section Label */
+.lic-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+/* Custom License Badge */
+.lic-custom-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: white;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.lic-card-custom {
+  border-left: 3px solid #8b5cf6;
+}
+
+/* Stat Colors */
+.lic-stat-teal {
+  background: linear-gradient(135deg, #0d9488, #0f766e);
+  color: white;
+}
+
+.lic-stat-teal .lic-stat-value,
+.lic-stat-teal .lic-stat-label {
+  color: white;
+}
