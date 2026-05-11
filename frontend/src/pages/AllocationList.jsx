@@ -2,80 +2,116 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/common/StatusBadge';
-import { Search, Download, RefreshCw, Eye, X, User, Laptop, Briefcase, Calendar, Package, Wrench } from 'lucide-react';
+import {
+  Search, Download, RefreshCw, Eye, X,
+  User, Laptop, Briefcase, Package, Wrench,
+  ArrowLeft, ChevronRight
+} from 'lucide-react';
 import { toDateStr } from '../utils/dataUtils';
 import * as XLSX from 'xlsx';
 
-// ── View Allocation Modal ─────────────────────────────────────────────────────
-function ViewAllocationModal({ allocation, asset, onClose }) {
+// ── Detail Page View ──────────────────────────────────────────────────────────
+function AllocationDetailPage({ allocation, asset, onBack }) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 580 }} onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className="fade-in">
+      {/* Top bar with Back button */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        marginBottom: 24, paddingBottom: 16,
+        borderBottom: '1px solid var(--border)',
+      }}>
+        <button
+          className="btn btn-secondary"
+          onClick={onBack}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <ArrowLeft size={15} /> Back to List
+        </button>
+        {/* Breadcrumb */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)' }}>
+          <span style={{ cursor: 'pointer', color: 'var(--accent)' }} onClick={onBack}>Allocation List</span>
+          <ChevronRight size={13} />
+          <span style={{ color: 'var(--text)', fontWeight: 600 }}>{allocation.empName}</span>
+        </div>
+      </div>
+
+      {/* Employee header card */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{
-              width: 42, height: 42, borderRadius: '50%',
+              width: 56, height: 56, borderRadius: '50%',
               background: 'var(--accent-glow)', border: '2px solid var(--accent)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, fontWeight: 700, color: 'var(--accent)',
+              fontSize: 22, fontWeight: 700, color: 'var(--accent)', flexShrink: 0,
             }}>
               {allocation.empName?.[0] || '?'}
             </div>
             <div>
-              <h2 className="modal-title" style={{ margin: 0 }}>{allocation.empName}</h2>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                {allocation.empId}{allocation.department ? ` · ${allocation.department}` : ''}
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+                {allocation.empName}
+              </h2>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                {allocation.empId}
+                {allocation.department ? ` · ${allocation.department}` : ''}
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <StatusBadge status={allocation.status} />
-            <button className="btn btn-icon" onClick={onClose}><X size={16} /></button>
-          </div>
+          <StatusBadge status={allocation.status} />
         </div>
+      </div>
 
-        <div className="modal-body">
+      {/* Two-column grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
-          {/* ── Prepared / Allocated By ── */}
-          <div style={{
-            padding: '14px 16px', marginBottom: 20,
-            background: 'rgba(79,142,247,.07)',
-            border: '1px solid rgba(79,142,247,.25)',
-            borderRadius: 'var(--radius)',
-          }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)',
-              textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-              Prepared &amp; Allocated By
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <User size={16} color="var(--accent)" />
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>
-                  {allocation.preparedBy || allocation.prepared_by
-                    || allocation.allocatedBy || allocation.allocated_by || '—'}
-                </div>
-                {(allocation.allocatedByEmail || allocation.allocated_by_email) && (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>
-                    {allocation.allocatedByEmail || allocation.allocated_by_email}
+        {/* LEFT column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Prepared / Allocated By */}
+          <div className="card">
+            <div style={{
+              padding: '12px 14px', marginBottom: 0,
+              background: 'rgba(79,142,247,.07)',
+              border: '1px solid rgba(79,142,247,.25)',
+              borderRadius: 'var(--radius)',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)',
+                textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                Prepared &amp; Allocated By
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <User size={16} color="var(--accent)" />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>
+                    {allocation.preparedBy || allocation.prepared_by
+                      || allocation.allocatedBy || allocation.allocated_by || '—'}
                   </div>
-                )}
+                  {(allocation.allocatedByEmail || allocation.allocated_by_email) && (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>
+                      {allocation.allocatedByEmail || allocation.allocated_by_email}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* ── Asset Details ── */}
-          <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Laptop size={13} style={{ display: 'inline', verticalAlign: 'middle' }} />
-            Asset Details
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: 18 }}>
+          {/* Asset Details */}
+          <div className="card">
+            <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Laptop size={13} style={{ display: 'inline', verticalAlign: 'middle' }} />
+              Asset Details
+            </div>
             <div className="info-row">
               <span className="info-label">Asset ID</span>
               <span className="info-value" style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 700 }}>
                 {allocation.assetId}
               </span>
             </div>
-            <div className="info-row"><span className="info-label">Status</span><StatusBadge status={allocation.status} /></div>
+            <div className="info-row">
+              <span className="info-label">Status</span>
+              <StatusBadge status={allocation.status} />
+            </div>
             <div className="info-row">
               <span className="info-label">Brand / Model</span>
               <span className="info-value">{asset ? `${asset.brand} ${asset.model}` : '—'}</span>
@@ -90,12 +126,53 @@ function ViewAllocationModal({ allocation, asset, onClose }) {
             </div>
           </div>
 
-          {/* ── Allocation Info ── */}
-          <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Briefcase size={13} style={{ display: 'inline', verticalAlign: 'middle' }} />
-            Allocation Info
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px', marginBottom: 18 }}>
+          {/* Accessories */}
+          {allocation.accessories?.length > 0 && (
+            <div className="card">
+              <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Package size={13} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                Accessories
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {allocation.accessories.map((acc, i) => (
+                  <span key={i} style={{
+                    fontSize: 12, padding: '4px 12px', borderRadius: 20,
+                    background: 'var(--surface2)', border: '1px solid var(--border)',
+                    color: 'var(--text-dim)',
+                  }}>
+                    {acc}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Preparation */}
+          {(allocation.preparedBy || allocation.prepared_by) && (
+            <div className="card">
+              <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Wrench size={13} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                Preparation
+              </div>
+              <div className="info-row">
+                <span className="info-label">Configured By</span>
+                <span className="info-value" style={{ fontWeight: 600 }}>
+                  {allocation.preparedBy || allocation.prepared_by}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Allocation Info */}
+          <div className="card">
+            <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Briefcase size={13} style={{ display: 'inline', verticalAlign: 'middle' }} />
+              Allocation Info
+            </div>
             <div className="info-row"><span className="info-label">Project</span><span className="info-value">{allocation.project || '—'}</span></div>
             <div className="info-row"><span className="info-label">Client</span><span className="info-value">{allocation.client || '—'}</span></div>
             <div className="info-row">
@@ -130,48 +207,14 @@ function ViewAllocationModal({ allocation, asset, onClose }) {
             </div>
           </div>
 
-          {/* ── Accessories ── */}
-          {allocation.accessories?.length > 0 && (
-            <>
-              <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Package size={13} style={{ display: 'inline', verticalAlign: 'middle' }} />
-                Accessories
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
-                {allocation.accessories.map((acc, i) => (
-                  <span key={i} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20,
-                    background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-dim)' }}>
-                    {acc}
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* ── Preparation Details ── */}
-          {(allocation.preparedBy || allocation.prepared_by) && (
-            <>
-              <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Wrench size={13} style={{ display: 'inline', verticalAlign: 'middle' }} />
-                Preparation
-              </div>
-              <div className="info-row" style={{ marginBottom: 18 }}>
-                <span className="info-label">Configured By</span>
-                <span className="info-value" style={{ fontWeight: 600 }}>
-                  {allocation.preparedBy || allocation.prepared_by}
-                </span>
-              </div>
-            </>
-          )}
-
-          {/* ── Damage / Condition Photos ── */}
+          {/* Condition Photos */}
           {(() => {
             let photos = [];
             try { photos = JSON.parse(allocation.damagePhotos || allocation.damage_photos || '[]'); } catch (_) {}
             return photos.length > 0 ? (
-              <>
-                <div className="section-title" style={{ marginBottom: 10 }}>Condition Photos</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 18 }}>
+              <div className="card">
+                <div className="section-title" style={{ marginBottom: 12 }}>Condition Photos</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                   {photos.map((src, i) => (
                     <img key={i} src={src} alt={`Condition ${i + 1}`}
                       style={{ width: '100%', aspectRatio: '1', objectFit: 'cover',
@@ -180,15 +223,15 @@ function ViewAllocationModal({ allocation, asset, onClose }) {
                     />
                   ))}
                 </div>
-              </>
+              </div>
             ) : null;
           })()}
 
-          {/* ── Issue Images (legacy) ── */}
+          {/* Issue Images */}
           {(allocation.issueImages || allocation.issue_images)?.length > 0 && (
-            <>
-              <div className="section-title" style={{ marginBottom: 10 }}>Issue Images</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+            <div className="card">
+              <div className="section-title" style={{ marginBottom: 12 }}>Issue Images</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {(allocation.issueImages || allocation.issue_images).map((img, i) => (
                   <img key={i} src={img} alt={`Issue ${i + 1}`}
                     style={{ width: 110, height: 82, objectFit: 'cover',
@@ -197,24 +240,66 @@ function ViewAllocationModal({ allocation, asset, onClose }) {
                   />
                 ))}
               </div>
-            </>
-          )}
-
-          {/* ── Notes ── */}
-          {allocation.notes && (
-            <div style={{ padding: '10px 14px', background: 'var(--surface2)',
-              border: '1px solid var(--border)', borderRadius: 'var(--radius)',
-              fontSize: 13, color: 'var(--text-dim)', marginBottom: 18 }}>
-              <span style={{ fontWeight: 600, color: 'var(--text-muted)', marginRight: 8 }}>Notes:</span>
-              {allocation.notes}
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" onClick={onClose}>Close</button>
-          </div>
+          {/* Notes */}
+          {allocation.notes && (
+            <div className="card">
+              <div className="section-title" style={{ marginBottom: 10 }}>Notes</div>
+              <div style={{
+                padding: '10px 14px', background: 'var(--surface2)',
+                border: '1px solid var(--border)', borderRadius: 'var(--radius)',
+                fontSize: 13, color: 'var(--text-dim)',
+              }}>
+                {allocation.notes}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Bottom Back button */}
+      <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border)', display: 'flex' }}>
+        <button className="btn btn-secondary" onClick={onBack}>
+          <ArrowLeft size={15} /> Back to Allocation List
+        </button>
+      </div>
+
+      <style>{`
+        .section-title {
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--text);
+          margin-bottom: 12px;
+          padding-bottom: 8px;
+          border-bottom: 2px solid var(--border);
+        }
+        .info-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 10px 0;
+          border-bottom: 1px solid var(--border);
+        }
+        .info-row:last-child {
+          border-bottom: none;
+        }
+        .info-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+        .info-value {
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--text);
+          text-align: right;
+          max-width: 60%;
+          word-break: break-word;
+        }
+      `}</style>
     </div>
   );
 }
@@ -225,7 +310,8 @@ export default function AllocationList() {
   const navigate = useNavigate();
   const [search,    setSearch]   = useState('');
   const [filter,    setFilter]   = useState('Active');
-  const [viewAlloc, setViewAlloc] = useState(null);
+  const [viewAlloc, setViewAlloc] = useState(null); // null = list view, object = detail view
+  const listStateSnapshot = React.useRef({ search: '', filter: 'Active' });
 
   const filtered = allocations.filter(a => {
     const matchFilter = filter === 'All' || a.status === filter;
@@ -269,6 +355,32 @@ export default function AllocationList() {
     XLSX.writeFile(wb, `Allocations_${filter}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  // Save current list state before navigating
+  const handleOpenView = (allocation) => {
+    listStateSnapshot.current = { search, filter };
+    setViewAlloc(allocation);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleBackToList = () => {
+    const { search: prevSearch, filter: prevFilter } = listStateSnapshot.current;
+    setSearch(prevSearch);
+    setFilter(prevFilter);
+    setViewAlloc(null);
+  };
+
+  // ── If a row is selected, show detail page instead of list ──
+  if (viewAlloc) {
+    return (
+      <AllocationDetailPage
+        allocation={viewAlloc}
+        asset={getAsset(viewAlloc.assetId)}
+        onBack={handleBackToList}
+      />
+    );
+  }
+
+  // ── List view ──
   return (
     <div className="fade-in">
       <div className="page-header page-header-row">
@@ -296,7 +408,7 @@ export default function AllocationList() {
       </div>
 
       <div className="table-wrap">
-        <table>
+        <table className="data-table">
           <thead>
             <tr>
               <th>Alloc ID</th>
@@ -313,70 +425,65 @@ export default function AllocationList() {
           <tbody>
             {filtered.length === 0 ? (
               <tr><td colSpan={9}><div className="empty-state"><p>No allocations found</p></div></td></tr>
-            ) : filtered.map(a => {
-              const asset = getAsset(a.assetId);
-              // ✅ Show actual IT staff name — prepared_by takes priority
-              const staffName = a.preparedBy || a.prepared_by || a.allocatedBy || a.allocated_by || '—';
-              return (
-                <tr key={a.id}>
-                  <td>
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>{a.id}</span>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{a.empName}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      {a.empId}{a.department ? ` · ${a.department}` : ''}
-                    </div>
-                  </td>
-                  <td>
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: 'var(--accent)', fontWeight: 700 }}>
-                      {a.assetId}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>{asset?.model || '—'}</td>
-                  <td>
-                    <div style={{ fontSize: 12.5 }}>{a.project || '—'}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{a.client}</div>
-                  </td>
-                  {/* ✅ FIXED — shows actual staff name from prepared_by */}
-                  <td>
-                    <div style={{ fontSize: 12.5, fontWeight: 500 }}>{staffName}</div>
-                  </td>
-                  <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{toDateStr(a.allocationDate) || '—'}</td>
-                  <td><StatusBadge status={a.status} /></td>
-                  <td>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <button className="btn btn-sm btn-secondary" onClick={() => setViewAlloc(a)}>
-                        <Eye size={12} /> View
-                      </button>
-                      {a.status === 'Active' && (
-                        <>
-                          <button className="btn btn-sm btn-secondary"
-                            onClick={() => navigate('/receive', { state: { allocationId: a.id } })}>
-                            Receive
-                          </button>
-                          <button className="btn btn-sm btn-secondary"
-                            onClick={() => navigate('/swap', { state: { allocationId: a.id } })}>
-                            <RefreshCw size={12} /> Swap
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+            ) : (
+              filtered.map(a => {
+                const asset = getAsset(a.assetId);
+                const staffName = a.preparedBy || a.prepared_by || a.allocatedBy || a.allocated_by || '—';
+                return (
+                  <tr key={a.id}>
+                    <td>
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>{a.id}</span>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{a.empName}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {a.empId}{a.department ? ` · ${a.department}` : ''}
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: 'var(--accent)', fontWeight: 700 }}>
+                        {a.assetId}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>{asset?.model || '—'}</td>
+                    <td>
+                      <div style={{ fontSize: 12.5 }}>{a.project || '—'}</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{a.client}</div>
+                    </td>
+                    <td>
+                      <div style={{ fontSize: 12.5, fontWeight: 500 }}>{staffName}</div>
+                    </td>
+                    <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{toDateStr(a.allocationDate) || '—'}</td>
+                    <td><StatusBadge status={a.status} /></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={() => handleOpenView(a)}
+                        >
+                          <Eye size={12} /> View
+                        </button>
+                        {a.status === 'Active' && (
+                          <>
+                            <button className="btn btn-sm btn-secondary"
+                              onClick={() => navigate('/receive', { state: { allocationId: a.id } })}>
+                              Receive
+                            </button>
+                            <button className="btn btn-sm btn-secondary"
+                              onClick={() => navigate('/swap', { state: { allocationId: a.id } })}>
+                              <RefreshCw size={12} /> Swap
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
-
-      {viewAlloc && (
-        <ViewAllocationModal
-          allocation={viewAlloc}
-          asset={getAsset(viewAlloc.assetId)}
-          onClose={() => setViewAlloc(null)}
-        />
-      )}
     </div>
   );
 }

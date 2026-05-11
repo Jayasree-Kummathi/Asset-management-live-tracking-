@@ -998,9 +998,14 @@ export default function AccessControl() {
                       )}
                     </td>
 
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 140 }}>
-                      {r.notes || '—'}
-                    </td>
+                    <td>
+   <span
+      className="ac-notes-text"
+      title={r.notes || ''}
+    >
+      {r.notes || '—'}
+    </span>
+   </td>
 
                     <td>
                       <div className="ac-actions">

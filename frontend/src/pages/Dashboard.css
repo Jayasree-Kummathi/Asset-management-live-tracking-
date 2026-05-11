@@ -144,7 +144,75 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* Pie Chart */
+/* ============================================
+   CHART TEXT COLOR FIXES — Light & Dark Theme
+   ============================================ */
+
+/* Recharts — axis tick labels (XAxis, YAxis) */
+.recharts-cartesian-axis-tick-value,
+.recharts-cartesian-axis-tick text,
+.recharts-xAxis .recharts-cartesian-axis-tick text,
+.recharts-yAxis .recharts-cartesian-axis-tick text {
+  fill: var(--text) !important;
+  font-size: 12px;
+  font-family: var(--font);
+}
+
+/* Recharts — axis labels */
+.recharts-label,
+.recharts-cartesian-axis-label {
+  fill: var(--text-muted) !important;
+}
+
+/* Recharts — legend text */
+.recharts-legend-item-text,
+.recharts-default-legend .recharts-legend-item-text {
+  color: var(--text) !important;
+  fill: var(--text) !important;
+}
+
+/* Recharts — tooltip */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+.recharts-tooltip-label {
+  color: var(--text) !important;
+  font-weight: 600;
+}
+.recharts-tooltip-item {
+  color: var(--text-muted) !important;
+}
+
+/* Recharts — Pie/Donut chart label text */
+.recharts-pie-label-text,
+.recharts-pie text,
+.recharts-layer text {
+  fill: var(--text) !important;
+  font-size: 12px;
+}
+
+/* Recharts — cartesian grid lines */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--border);
+}
+
+/* Chart.js — canvas-based charts need JS-side config,
+   but these wrappers ensure container text is correct */
+.chart-container,
+.chart-wrapper {
+  color: var(--text);
+}
+
+/* SVG text elements inside chart cards */
+.card svg text,
+.card text {
+  fill: var(--text) !important;
+}
+
+/* Pie chart legend (custom HTML legend) */
 .pie-wrap {
   display: flex;
   align-items: center;
@@ -164,17 +232,77 @@
   align-items: center;
   gap: 10px;
   font-size: 13px;
+  color: var(--text);          /* ← was missing, caused invisible text in light mode */
 }
 
 .pie-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .pie-count {
   margin-left: auto;
   font-weight: 600;
+  color: var(--text);          /* ← explicit, no inheritance risk */
+}
+
+/* Chart card titles / section headings */
+.chart-title,
+.chart-label {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* ============================================
+   LIGHT THEME  — force chart text to black
+   ============================================ */
+:root .recharts-cartesian-axis-tick-value,
+:root .recharts-cartesian-axis-tick text,
+:root .recharts-xAxis .recharts-cartesian-axis-tick text,
+:root .recharts-yAxis .recharts-cartesian-axis-tick text,
+:root .recharts-pie-label-text,
+:root .recharts-layer text,
+:root .recharts-pie text {
+  fill: #000000 !important;
+}
+
+:root .recharts-legend-item-text {
+  color: #000000 !important;
+}
+
+:root .pie-legend-item,
+:root .pie-count {
+  color: #000000 !important;
+}
+
+/* ============================================
+   DARK THEME — force chart text to white
+   ============================================ */
+[data-theme="dark"] .recharts-cartesian-axis-tick-value,
+[data-theme="dark"] .recharts-cartesian-axis-tick text,
+[data-theme="dark"] .recharts-xAxis .recharts-cartesian-axis-tick text,
+[data-theme="dark"] .recharts-yAxis .recharts-cartesian-axis-tick text,
+[data-theme="dark"] .recharts-pie-label-text,
+[data-theme="dark"] .recharts-layer text,
+[data-theme="dark"] .recharts-pie text {
+  fill: #ffffff !important;
+}
+
+[data-theme="dark"] .recharts-legend-item-text {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .pie-legend-item,
+[data-theme="dark"] .pie-count {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: #1c2030 !important;
+  border-color: #252a38 !important;
 }
 
 /* Recent Allocations */

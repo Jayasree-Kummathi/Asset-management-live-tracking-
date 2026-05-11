@@ -19,37 +19,41 @@ try {
 // ── SMTP ──────────────────────────────────────────────────────────────────────
 const createTransporter = () =>
   nodemailer.createTransport({
-    host:       process.env.MAIL_HOST || 'smtp.office365.com',
-    port:       Number(process.env.MAIL_PORT) || 587,
-    secure:     false,
+    host: process.env.MAIL_HOST || 'smtp.office365.com',
+    port: Number(process.env.MAIL_PORT) || 587,
+
+    secure: false, // STARTTLS
     requireTLS: true,
-    tls:        { ciphers: 'SSLv3', rejectUnauthorized: false },
-    auth:       { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+
+    auth: {
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
+    },
+
+    tls: {
+      rejectUnauthorized: false
+    },
+
     connectionTimeout: 15000,
-    greetingTimeout:   10000,
+    greetingTimeout: 10000,
   });
-
+  
 const getFrom  = () => process.env.MAIL_FROM || `AssetOps <${process.env.MAIL_USER}>`;
-
-// FIX 2: sysEmail() now safely returns empty string instead of undefined
 const sysEmail = () => (process.env.SYSADMIN_EMAIL || '').trim();
 
-// FIX 2: buildCC filters out falsy/empty values so 'undefined' never appears in CC
 const buildCC = ({ performedByEmail = '', extraCCs = [] } = {}) => {
   const list = [sysEmail(), performedByEmail, ...extraCCs]
     .map(e => (e || '').trim().toLowerCase())
-    .filter(e => e && e.includes('@')); // must look like an email
+    .filter(e => e && e.includes('@'));
   return [...new Set(list)];
 };
 
-// FIX 9: validate recipient before sending
 const validateEmail = (email) => {
   if (!email || !String(email).includes('@')) {
     throw new Error(`Invalid or missing recipient email: "${email}"`);
   }
 };
 
-// FIX 3: sendMail now throws on failure so callers can handle it
 const sendMail = async (options) => {
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
     console.log('📧 [Skipped — MAIL_USER/PASS not configured]');
@@ -57,26 +61,23 @@ const sendMail = async (options) => {
     return;
   }
   const transporter = createTransporter();
-  // FIX: retry once on failure
   let lastErr;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       await transporter.verify();
       const info = await transporter.sendMail({ from: getFrom(), ...options });
       console.log(`📧 Sent → ${options.to} | ${info.messageId}`);
-      return; // success
+      return;
     } catch (err) {
       lastErr = err;
       console.error(`📧 Attempt ${attempt} FAILED:`, err.message);
       if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
     }
   }
-  // FIX 3: throw after all retries exhausted so caller knows
   throw new Error(`Email delivery failed after 2 attempts: ${lastErr.message}`);
 };
 
 // ── Attachment helpers ────────────────────────────────────────────────────────
-// FIX 4: CID is now consistently 'company_logo' everywhere
 const LOGO_CID = 'company_logo';
 
 const getLogoAttachment = () => {
@@ -108,9 +109,6 @@ const getPhotoAttachment = (photoBase64) => {
   } catch { return []; }
 };
 
-/**
- * Convert base64 array → nodemailer inline attachments with unique CIDs
- */
 const buildPhotoAttachments = (photos = [], prefix = 'photo') => {
   const attachments = [], cids = [];
   if (!Array.isArray(photos)) return { attachments, cids };
@@ -134,30 +132,36 @@ const buildPhotoAttachments = (photos = [], prefix = 'photo') => {
 };
 
 // ── Shared CSS ────────────────────────────────────────────────────────────────
+// Outlook-safe CSS:
+//   - NO display:flex (replaced with table layouts in HTML)
+//   - NO linear-gradient (replaced with solid fallback colors)
+//   - NO box-shadow (removed; Outlook ignores it)
+//   - NO ::after pseudo-elements (removed; not rendered in Outlook)
+//   - NO border-radius on <table> elements (Outlook ignores overflow:hidden on tables)
+//   - NO background shorthand with gradients on block elements
+//   - Kept: border-radius on <div> elements (supported via Outlook's own rendering)
+//   - Kept: all table/cell styles, font styles, colors, padding
 const CSS = `
   *{box-sizing:border-box}
   body{margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:660px;margin:24px auto;background:#fff;border-radius:16px;overflow:hidden;
-        box-shadow:0 4px 24px rgba(0,0,0,.10);border:1px solid #e2e8f0}
+  .wrap{max-width:660px;margin:24px auto;background:#fff;border:1px solid #e2e8f0}
 
   /* ── Logo bar ── */
-  .logo-bar{background:#fff;padding:16px 32px;border-bottom:3px solid #1d5c3c;
-            display:flex;align-items:center;justify-content:space-between}
-  .logo-bar img{height:36px;width:auto}
+  /* FIX: removed display:flex — logo bar uses a nested table in wrap() instead */
+  .logo-bar{background:#fff;padding:16px 32px;border-bottom:3px solid #1d5c3c}
   .logo-tagline{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
 
   /* ── Header banner ── */
-  .hdr{padding:28px 32px 24px;position:relative;overflow:hidden}
-  .hdr::after{content:'';position:absolute;right:-30px;top:-30px;width:160px;height:160px;
-              border-radius:50%;background:rgba(255,255,255,.08)}
+  /* FIX: removed linear-gradient (set as inline bgcolor on td in wrap()), removed ::after pseudo */
+  .hdr{padding:28px 32px 24px}
   .hdr-icon{font-size:32px;margin-bottom:10px;display:block}
-  .hdr-title{color:#fff;font-size:24px;font-weight:800;margin:0 0 4px;letter-spacing:-.3px}
-  .hdr-sub{color:rgba(255,255,255,.78);font-size:13px;margin:0}
+  .hdr-title{color:#fff;font-size:24px;font-weight:800;margin:0 0 4px}
+  .hdr-sub{color:#d1fae5;font-size:13px;margin:0}
 
   /* ── Allocation ID badge ── */
-  .alloc-badge{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
+  .alloc-badge{display:inline-block;background:#2a6f52;border:1px solid #3a8f6a;
                color:#fff;font-family:monospace;font-size:13px;font-weight:700;padding:5px 14px;
-               border-radius:20px;margin-top:12px;letter-spacing:.05em}
+               border-radius:20px;margin-top:12px}
 
   /* ── Body ── */
   .body{padding:28px 32px}
@@ -165,96 +169,88 @@ const CSS = `
   .intro{font-size:14px;color:#475569;margin:0 0 24px;line-height:1.75}
 
   /* ── Section title ── */
+  /* FIX: removed ::after pseudo-element (decorative line after title) */
   .sec{margin-bottom:20px}
   .sec-title{font-size:10px;font-weight:800;color:#1d5c3c;text-transform:uppercase;
-             letter-spacing:.1em;margin:0 0 10px;display:flex;align-items:center;gap:6px}
-  .sec-title::after{content:'';flex:1;height:2px;background:linear-gradient(to right,#d1fae5,transparent)}
+             letter-spacing:.1em;margin:0 0 10px;border-bottom:2px solid #d1fae5;padding-bottom:4px}
 
   /* ── Info table ── */
-  .tbl{width:100%;border-collapse:collapse;margin-bottom:0;font-size:13.5px;border-radius:10px;overflow:hidden}
-  .tbl tr:first-child td,.tbl tr:first-child th{border-top:none}
+  .tbl{width:100%;border-collapse:collapse;margin-bottom:0;font-size:13.5px}
   .tbl td,.tbl th{padding:10px 14px;border:1px solid #e8edf2;vertical-align:middle}
   .tbl th{background:#f8fafc;font-size:10.5px;font-weight:700;color:#64748b;
-          text-transform:uppercase;letter-spacing:.06em;width:38%;border-right:2px solid #e2e8f0}
+          text-transform:uppercase;width:38%;border-right:2px solid #e2e8f0}
   .tbl td{color:#1e293b;font-weight:600}
   .tbl tr:nth-child(even) td{background:#fafcff}
-  .tbl td.mono{font-family:monospace;font-size:14px;color:#1d3461;font-weight:700;letter-spacing:.03em}
+  .tbl td.mono{font-family:monospace;font-size:14px;color:#1d3461;font-weight:700}
   .tbl td.green{color:#059669;font-weight:700}
   .tbl td.red{color:#dc2626;font-weight:700}
 
-  /* FIX 1: Swap comparison — replaced CSS grid with table layout (email-client safe) */
+  /* ── Swap comparison ── */
   .cmp-outer{width:100%;border-collapse:collapse;margin-bottom:0}
   .cmp-outer td{width:50%;vertical-align:top;padding:0}
   .cmp-outer td:first-child{padding-right:6px}
   .cmp-outer td:last-child{padding-left:6px}
-  .cmp-card{border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;width:100%}
-  .cmp-hdr{padding:10px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+  .cmp-card{border:1px solid #e2e8f0;width:100%;border-collapse:collapse}
+  .cmp-hdr{padding:10px 14px;font-size:11px;font-weight:800;text-transform:uppercase}
   .cmp-row{padding:8px 12px;border-bottom:1px solid #f1f5f9}
   .cmp-row:last-child{border-bottom:none}
-  .cmp-label{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;
-             letter-spacing:.05em;margin-bottom:2px}
+  .cmp-label{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-bottom:2px}
   .cmp-val{color:#1e293b;font-weight:700;font-size:13px}
   .cmp-val.mono{font-family:monospace;font-size:13px;color:#1d3461}
 
   /* ── Badges ── */
-  .badge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.03em}
+  .badge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:11px;font-weight:700}
   .badge-green{background:#d1fae5;color:#065f46}
   .badge-blue{background:#dbeafe;color:#1e40af}
   .badge-amber{background:#fef3c7;color:#92400e}
   .badge-red{background:#fee2e2;color:#991b1b}
   .badge-purple{background:#ede9fe;color:#5b21b6}
 
-  /* ── Employee photo ── */
-  .emp-row{padding:14px 16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;margin-bottom:20px}
-  .emp-inner{display:flex;align-items:center}
-  .emp-avatar{width:60px;height:60px;border-radius:50%;object-fit:cover;
-              border:3px solid #1d5c3c;margin-right:16px}
+  /* ── Employee card ── */
+  /* FIX: emp-inner used display:flex — replaced with table layout in empCard() helper */
+  .emp-row{padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:20px}
+  .emp-avatar{width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #1d5c3c}
   .emp-avatar-placeholder{width:60px;height:60px;border-radius:50%;background:#1d5c3c;
                            color:#fff;font-size:22px;font-weight:700;text-align:center;
-                           line-height:60px;margin-right:16px}
+                           line-height:60px}
   .emp-info-name{font-size:16px;font-weight:700;color:#1e293b}
   .emp-info-sub{font-size:12px;color:#64748b;margin-top:2px}
 
   /* ── QR section ── */
-  .qr-section{text-align:center;padding:20px;background:linear-gradient(135deg,#f0fdf4,#eff6ff);
-              border-radius:12px;border:2px dashed #d1fae5;margin-bottom:20px}
-  .qr-section img{width:170px;height:170px;border:4px solid #1d3461;border-radius:10px;
-                  padding:5px;background:#fff}
+  /* FIX: removed linear-gradient background — using solid fallback color */
+  .qr-section{text-align:center;padding:20px;background:#f0fdf4;
+              border:2px dashed #d1fae5;margin-bottom:20px}
+  .qr-section img{width:170px;height:170px;border:4px solid #1d3461;padding:5px;background:#fff}
   .qr-label{font-size:13px;font-weight:700;color:#1e293b;margin-top:12px}
   .qr-sub{font-size:12px;color:#64748b;margin-top:4px}
   .qr-link{display:inline-block;margin-top:8px;font-size:11px;color:#1d5c3c;
            text-decoration:underline;font-family:monospace;word-break:break-all}
 
   /* ── Photos grid ── */
-  .photos-section{background:#fffbea;border:1px solid #fde68a;border-radius:10px;
-                  padding:14px 16px;margin-bottom:20px}
-  .photos-label{font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;
-                letter-spacing:.06em;margin-bottom:10px}
-  .photos-grid img{width:120px;height:90px;object-fit:cover;border-radius:8px;
-                   border:2px solid #e2e8f0;display:inline-block;margin:0 4px 4px 0}
+  .photos-section{background:#fffbea;border:1px solid #fde68a;padding:14px 16px;margin-bottom:20px}
+  .photos-label{font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;margin-bottom:10px}
+  .photos-grid img{width:120px;height:90px;object-fit:cover;border:2px solid #e2e8f0;
+                   display:inline-block;margin:0 4px 4px 0}
 
   /* ── Action button ── */
-  .action-box{background:#f0fdf4;border:2px solid #16a34a;border-radius:14px;
-              padding:20px 24px;margin:20px 0;text-align:center}
+  .action-box{background:#f0fdf4;border:2px solid #16a34a;padding:20px 24px;margin:20px 0;text-align:center}
   .action-box-title{font-size:15px;font-weight:800;color:#14532d;margin-bottom:6px}
   .action-box-sub{font-size:13px;color:#166534;margin-bottom:16px;line-height:1.6}
   .action-btn{display:inline-block;background:#16a34a;color:#fff;text-decoration:none;
-              padding:13px 36px;border-radius:10px;font-size:15px;font-weight:700;
-              letter-spacing:.02em}
+              padding:13px 36px;font-size:15px;font-weight:700}
   .action-note{font-size:11px;color:#6b7280;margin-top:12px}
 
   /* ── Notice box ── */
   .notice{background:#fffbea;border-left:4px solid #f59e0b;padding:14px 18px;
-          font-size:13px;color:#92400e;line-height:1.8;border-radius:0 8px 8px 0;margin-bottom:20px}
+          font-size:13px;color:#92400e;line-height:1.8;margin-bottom:20px}
   .notice ul{margin:8px 0 0 18px;padding:0}
   .notice li{margin-bottom:4px}
 
-  /* ── Status summary bar — table-based (email safe) ── */
+  /* ── Status summary bar ── */
   .status-bar{width:100%;border-collapse:collapse;margin-bottom:20px}
   .status-bar td{width:33%;padding:12px 6px;text-align:center;vertical-align:middle}
-  .status-item{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center}
-  .status-item-label{font-size:10px;color:#94a3b8;text-transform:uppercase;
-                     letter-spacing:.07em;font-weight:600;margin-bottom:4px}
+  .status-item{background:#f8fafc;border:1px solid #e2e8f0;padding:12px;text-align:center}
+  .status-item-label{font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:600;margin-bottom:4px}
   .status-item-val{font-size:15px;font-weight:800;color:#1e293b}
 
   /* ── Divider ── */
@@ -268,23 +264,37 @@ const CSS = `
 `;
 
 // ── Layout wrapper ─────────────────────────────────────────────────────────────
-// FIX 4: uses LOGO_CID constant instead of hardcoded 'Grasko_logo'
-const wrap = (hdrColor, icon, title, sub, allocId, body, acceptLink = '') => {
+// FIX: logo-bar now uses a nested <table> instead of flex.
+// FIX: .hdr background is set as a solid bgcolor on the wrapping <td> (Outlook reads bgcolor).
+//      The gradient is kept as a CSS background for modern clients via inline style;
+//      Outlook falls back to the bgcolor attribute automatically.
+// FIX: removed box-shadow from .wrap (unsupported).
+const wrap = (hdrColor, hdrBgColor, icon, title, sub, allocId, body, acceptLink = '') => {
   const sys = sysEmail();
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${title}</title><style>${CSS}</style></head><body>
 <div class="wrap">
-  <div class="logo-bar">
-    <img src="cid:${LOGO_CID}" alt="Logo"/>
-    <span class="logo-tagline">IT Asset Management</span>
-  </div>
-  <div class="hdr" style="background:${hdrColor}">
-    <span class="hdr-icon">${icon}</span>
-    <p class="hdr-title">${title}</p>
-    <p class="hdr-sub">${sub}</p>
-    ${allocId ? `<div class="alloc-badge">${allocId}</div>` : ''}
-  </div>
+  <table class="logo-bar" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td style="vertical-align:middle;padding:16px 32px">
+        <img src="cid:${LOGO_CID}" alt="Logo" height="36" style="height:36px;width:auto;display:block"/>
+      </td>
+      <td style="vertical-align:middle;padding:16px 32px;text-align:right">
+        <span class="logo-tagline">IT Asset Management</span>
+      </td>
+    </tr>
+  </table>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td class="hdr" bgcolor="${hdrBgColor}" style="background:${hdrColor};padding:28px 32px 24px">
+        <span class="hdr-icon">${icon}</span>
+        <p class="hdr-title">${title}</p>
+        <p class="hdr-sub">${sub}</p>
+        ${allocId ? `<div class="alloc-badge">${allocId}</div>` : ''}
+      </td>
+    </tr>
+  </table>
   <div class="body">
     ${body}
     ${acceptLink ? `
@@ -297,13 +307,14 @@ const wrap = (hdrColor, icon, title, sub, allocId, body, acceptLink = '') => {
     </div>` : ''}
   </div>
   <div class="footer">
-    <div class="footer-brand">Grasko IT Asset Management &mdash; AssetOps</div>
+    <div class="footer-brand">Mindteck IT Asset Management &mdash; AssetOps</div>
     ${sys ? `<a href="mailto:${sys}">${sys}</a>` : ''}
   </div>
 </div></body></html>`;
 };
 
-// ── Helper: employee card (email-client safe — no flexbox) ────────────────────
+// ── Helper: employee card ─────────────────────────────────────────────────────
+// Already table-based — no change needed.
 const empCard = (name, id, dept, mobile, email, hasPhoto) =>
 `<div class="emp-row">
   <table style="border-collapse:collapse;width:100%"><tr>
@@ -313,7 +324,7 @@ const empCard = (name, id, dept, mobile, email, hasPhoto) =>
         : `<div class="emp-avatar-placeholder">${(name || '?')[0].toUpperCase()}</div>`
       }
     </td>
-    <td style="vertical-align:middle;padding:0">
+    <td style="vertical-align:middle;padding:0 0 0 16px">
       <div class="emp-info-name">${name}</div>
       <div class="emp-info-sub">${[id, dept, mobile, email].filter(Boolean).join(' &middot; ')}</div>
     </td>
@@ -340,7 +351,8 @@ const qrSection = (qrUrl) =>
   ${qrUrl ? `<a class="qr-link" href="${qrUrl}">${qrUrl}</a>` : ''}
 </div>`;
 
-// FIX 1: Swap comparison table — uses HTML table instead of CSS grid (email-client safe)
+// ── Swap comparison table ─────────────────────────────────────────────────────
+// Already table-based — no change needed.
 const swapCompareTable = (p) =>
 `<table class="cmp-outer"><tr>
   <td>
@@ -361,7 +373,7 @@ const swapCompareTable = (p) =>
   </td>
 </tr></table>`;
 
-// FIX: Status summary bar using table (not CSS grid)
+// ── Status summary bar ────────────────────────────────────────────────────────
 const statusBar = (items) =>
 `<table class="status-bar"><tr>
   ${items.map(item => `
@@ -373,12 +385,25 @@ const statusBar = (items) =>
   </td>`).join('')}
 </tr></table>`;
 
+// ── Gradient → solid color map (used by all email senders) ───────────────────
+// Outlook reads the bgcolor="" attribute on <td> as fallback when CSS gradient fails.
+// Each entry: [ cssGradient, outlookSolidFallback ]
+const HDR = {
+  allocate: ['linear-gradient(135deg,#1d3461,#1d5c3c)', '#1d3461'],
+  receive:  ['linear-gradient(135deg,#059669,#047857)', '#059669'],
+  swap:     ['linear-gradient(135deg,#7c3aed,#5b21b6)', '#7c3aed'],
+  accessory:['linear-gradient(135deg,#d97706,#b45309)', '#d97706'],
+  welcome:  ['linear-gradient(135deg,#0f172a,#1d3461)', '#0f172a'],
+  reminder: ['linear-gradient(135deg,#d97706,#b45309)', '#d97706'],
+  blue:     ['linear-gradient(135deg,#2563eb,#1d4ed8)', '#2563eb'],
+  green:    ['linear-gradient(135deg,#059669,#047857)', '#059669'],
+};
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. ALLOCATION EMAIL
 // ═══════════════════════════════════════════════════════════════════════════════
 exports.sendAllocationEmail = async (p) => {
-  // FIX 9: validate required email
   validateEmail(p.empEmail);
 
   const accessories = (p.accessories || []).join(', ') || 'None';
@@ -386,7 +411,6 @@ exports.sendAllocationEmail = async (p) => {
   const photoAtts   = getPhotoAttachment(p.photoUrl);
   const hasPhoto    = photoAtts.length > 0;
 
-  // FIX 7: Agreement generation — warn but continue without attachment
   let agreementBuffer = null;
   try {
     agreementBuffer = await generateAgreement({
@@ -395,20 +419,18 @@ exports.sendAllocationEmail = async (p) => {
       assetId: p.assetId, serial: p.serial, brand: p.brand, model: p.model,
       config: p.config || '', accessories: p.accessories || [],
       allocationDate: p.allocationDate,
-      managerName:  'Prem Kumar N',
-      managerEmail: 'prem@kanrad.com',
-      contactPerson: 'Prem Kumar N',
-      contactEmail:  'prem@kanrad.com',
+      managerName:  'Vasudevan Kannan',
+      managerEmail: 'vasudevan.kannan@mindteck.com',
+      contactPerson: 'Vasudevan Kannan',
+      contactEmail:  'vasudevan.kannan@mindteck.com',
     });
   } catch (e) {
     console.error('⚠️  Agreement generation failed — email will send WITHOUT attachment:', e.message);
   }
 
-  // Damage / condition photos
   const { attachments: condAtts, cids: condCids } = buildPhotoAttachments(
     Array.isArray(p.damagePhotosArray) ? p.damagePhotosArray : [], 'cond'
   );
-  // Fallback: legacy JSON string
   if (!condCids.length) {
     try {
       const legacy = JSON.parse(p.damagePhotos || '[]');
@@ -420,7 +442,6 @@ exports.sendAllocationEmail = async (p) => {
     } catch (_) {}
   }
 
-  // FIX 8: use UTC to avoid midnight/timezone deadline shift
   const allocMs      = new Date(p.allocationDate || Date.now()).getTime();
   const deadlineDate = new Date(allocMs + 10 * 24 * 60 * 60 * 1000);
   const deadlineStr  = deadlineDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -430,9 +451,9 @@ exports.sendAllocationEmail = async (p) => {
 
     <p class="greeting">Dear ${p.empName},</p>
     <p class="intro">
-      A laptop has been issued to you by the Grasko IT team. All details are listed below.
+      A laptop has been issued to you by the Mindteck IT team. All details are listed below.
       The <strong>Employee Laptop Agreement</strong>${agreementBuffer ? ' is attached' : ' will be sent separately'} &mdash; please sign and return it to
-      <a href="mailto:prem@kanrad.com">prem@kanrad.com</a>
+      <a href="mailto:vasudevan.kannan@mindteck.com">vasudevan.kannan@mindteck.com</a>
       by <strong>${deadlineStr}</strong>.
     </p>
 
@@ -477,7 +498,7 @@ exports.sendAllocationEmail = async (p) => {
       <strong>&#9888;&#65039; Important:</strong>
       <ul>
         <li>Review and sign the attached <strong>Employee Laptop Agreement</strong></li>
-        <li>Return signed copy to <strong>prem@kanrad.com</strong> by <strong>${deadlineStr}</strong></li>
+        <li>Return signed copy to <strong>vasudevan.kannan@mindteck.com</strong> by <strong>${deadlineStr}</strong></li>
         <li>Non-response by ${deadlineStr} will be treated as acceptance</li>
         <li>Hardware issues? Contact <a href="mailto:${sysEmail()}">${sysEmail()}</a></li>
       </ul>
@@ -502,7 +523,7 @@ exports.sendAllocationEmail = async (p) => {
     to:          toList.join(', '),
     cc:          cc.join(', '),
     subject:     `[AssetOps] Laptop Allocated — ${p.assetId} | ${p.empName}`,
-    html:        wrap('linear-gradient(135deg,#1d3461,#1d5c3c)', '&#128187;', 'Laptop Allocated', 'AssetOps · Grasko IT', p.allocationId, body, p.acceptanceLink || ''),
+    html:        wrap(...HDR.allocate, '&#128187;', 'Laptop Allocated', 'AssetOps · Mindteck IT', p.allocationId, body, p.acceptanceLink || ''),
     attachments,
   });
 };
@@ -512,12 +533,10 @@ exports.sendAllocationEmail = async (p) => {
 // 2. RECEIVE / RETURN EMAIL
 // ═══════════════════════════════════════════════════════════════════════════════
 exports.sendReceiveEmail = async (p) => {
-  // FIX 9: validate required email
   validateEmail(p.empEmail);
 
   const cc = buildCC({ performedByEmail: p.receivedByEmail, extraCCs: p.extraCCs });
 
-  // Return condition photos
   const { attachments: retAtts, cids: retCids } = buildPhotoAttachments(
     Array.isArray(p.damagePhotos) ? p.damagePhotos : [], 'ret'
   );
@@ -568,8 +587,7 @@ exports.sendReceiveEmail = async (p) => {
     ${p.damageDescription ? `
     <div class="sec">
       <div class="sec-title">&#9888;&#65039; Damage / Issue Notes</div>
-      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;
-                  padding:14px 18px;font-size:14px;color:#7c2d12;line-height:1.8">
+      <div style="background:#fff7ed;border:1px solid #fed7aa;padding:14px 18px;font-size:14px;color:#7c2d12;line-height:1.8">
         ${p.damageDescription}
       </div>
     </div>` : ''}
@@ -586,7 +604,7 @@ exports.sendReceiveEmail = async (p) => {
     to:          p.empEmail,
     cc:          cc.join(', '),
     subject:     `[AssetOps] Laptop Returned — ${p.assetId} | ${p.empName}`,
-    html:        wrap('linear-gradient(135deg,#059669,#047857)', '&#128229;', 'Laptop Returned', 'AssetOps · Grasko IT', '', body),
+    html:        wrap(...HDR.receive, '&#128229;', 'Laptop Returned', 'AssetOps · Mindteck IT', '', body),
     attachments: [...getLogoAttachment(), ...retAtts],
   });
 };
@@ -596,7 +614,6 @@ exports.sendReceiveEmail = async (p) => {
 // 3. SWAP EMAIL
 // ═══════════════════════════════════════════════════════════════════════════════
 exports.sendSwapEmail = async (p) => {
-  // FIX 9: validate required email
   validateEmail(p.empEmail);
 
   const cc        = buildCC({ performedByEmail: p.swappedByEmail, extraCCs: p.extraCCs });
@@ -652,7 +669,7 @@ exports.sendSwapEmail = async (p) => {
     to:          p.empEmail,
     cc:          cc.join(', '),
     subject:     `[AssetOps] Laptop Swapped — ${p.oldAssetId} → ${p.newAssetId} | ${p.empName}`,
-    html:        wrap('linear-gradient(135deg,#7c3aed,#5b21b6)', '&#128260;', 'Laptop Swapped', 'AssetOps · Grasko IT', p.newAllocationId, body),
+    html:        wrap(...HDR.swap, '&#128260;', 'Laptop Swapped', 'AssetOps · Mindteck IT', p.newAllocationId, body),
     attachments,
   });
 };
@@ -664,9 +681,7 @@ exports.sendSwapEmail = async (p) => {
 exports.sendAccessoryRequestEmail = async (p) => {
   validateEmail(p.empEmail);
 
-  const cc = buildCC({ performedByEmail: p.requestedByEmail, extraCCs: p.extraCCs || [] });
-
-  // FIX 6: safe guard against undefined items
+  const cc    = buildCC({ performedByEmail: p.requestedByEmail, extraCCs: p.extraCCs || [] });
   const items = Array.isArray(p.items) ? p.items : [];
   const rows  = items.map(i => `<tr><th>${i.item || '—'}</th><td>${i.quantity || 1} unit(s)</td></tr>`).join('');
 
@@ -694,8 +709,7 @@ exports.sendAccessoryRequestEmail = async (p) => {
     ${p.reason ? `
     <div class="sec">
       <div class="sec-title">&#128221; Reason</div>
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;
-                  padding:14px 18px;font-size:14px;color:#14532d;line-height:1.8">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 18px;font-size:14px;color:#14532d;line-height:1.8">
         ${p.reason}
       </div>
     </div>` : ''}
@@ -713,7 +727,7 @@ exports.sendAccessoryRequestEmail = async (p) => {
     to:          p.empEmail,
     cc:          cc.join(', '),
     subject:     `[AssetOps] Accessory Request — ${p.empName} | ${items.map(i => i.item).filter(Boolean).join(', ') || 'Items'}`,
-    html:        wrap('linear-gradient(135deg,#d97706,#b45309)', '&#128230;', 'Accessory Request', 'AssetOps · Grasko IT', '', body),
+    html:        wrap(...HDR.accessory, '&#128230;', 'Accessory Request', 'AssetOps · Mindteck IT', '', body),
     attachments: getLogoAttachment(),
   });
 };
@@ -734,7 +748,7 @@ exports.sendWelcomeEmail = async (p) => {
       <table class="tbl">
         <tr><th>Login URL</th><td><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}">${process.env.FRONTEND_URL || 'http://localhost:3000'}</a></td></tr>
         <tr><th>Email</th><td>${p.email}</td></tr>
-        <tr><th>Password</th><td class="mono" style="font-size:16px;letter-spacing:.05em">${p.password}</td></tr>
+        <tr><th>Password</th><td class="mono" style="font-size:16px">${p.password}</td></tr>
         <tr><th>Role</th><td><span class="badge badge-green">${p.role === 'it_staff' ? 'IT Staff' : p.role}</span></td></tr>
       </table>
     </div>
@@ -745,7 +759,7 @@ exports.sendWelcomeEmail = async (p) => {
     to:          p.email,
     cc:          sysEmail() || undefined,
     subject:     `[AssetOps] Your account is ready — Welcome ${p.name}`,
-    html:        wrap('linear-gradient(135deg,#0f172a,#1d3461)', '&#127881;', 'AssetOps Account Created', 'Grasko IT Asset Management', '', body),
+    html:        wrap(...HDR.welcome, '&#127881;', 'AssetOps Account Created', 'Mindteck IT Asset Management', '', body),
     attachments: getLogoAttachment(),
   });
 };
@@ -758,7 +772,6 @@ exports.sendAccessoryAllocatedEmail = async (p) => {
   validateEmail(p.empEmail);
 
   const cc    = buildCC({ performedByEmail: p.allocatedByEmail, extraCCs: p.extraCCs || [] });
-  // FIX 6: safe guard
   const items = Array.isArray(p.items) ? p.items : [];
   const rows  = items.map(i => `<tr><th>${i.item || '—'}</th><td>${i.quantity || 1} unit(s)</td></tr>`).join('');
 
@@ -786,8 +799,7 @@ exports.sendAccessoryAllocatedEmail = async (p) => {
     ${p.notes ? `
     <div class="sec">
       <div class="sec-title">&#128221; Notes</div>
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;
-                  padding:14px 18px;font-size:14px;color:#14532d;line-height:1.8">${p.notes}</div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 18px;font-size:14px;color:#14532d;line-height:1.8">${p.notes}</div>
     </div>` : ''}
 
     <div class="notice">
@@ -799,7 +811,7 @@ exports.sendAccessoryAllocatedEmail = async (p) => {
     to:          p.empEmail,
     cc:          cc.join(', '),
     subject:     `[AssetOps] Accessory Allocated — ${items.map(i => i.item).filter(Boolean).join(', ') || 'Items'} | ${p.empName}`,
-    html:        wrap('linear-gradient(135deg,#059669,#047857)', '&#128230;', 'Accessory Allocated', 'AssetOps · Grasko IT', '', body),
+    html:        wrap(...HDR.green, '&#128230;', 'Accessory Allocated', 'AssetOps · Mindteck IT', '', body),
     attachments: getLogoAttachment(),
   });
 };
@@ -839,7 +851,7 @@ exports.sendAccessoryReceivedEmail = async (p) => {
     to:          p.empEmail,
     cc:          cc.join(', '),
     subject:     `[AssetOps] Accessory Received — ${p.itemName} | ${p.empName}`,
-    html:        wrap('linear-gradient(135deg,#2563eb,#1d4ed8)', '&#9989;', 'Accessory Received', 'AssetOps · Grasko IT', '', body),
+    html:        wrap(...HDR.blue, '&#9989;', 'Accessory Received', 'AssetOps · Mindteck IT', '', body),
     attachments: getLogoAttachment(),
   });
 };
@@ -867,8 +879,7 @@ exports.sendAcceptanceReminderEmail = async (p) => {
       ${p.daysOverdue > 0 ? `Your acceptance was due <strong style="color:${urgencyColor}">${p.daysOverdue} day(s) ago</strong>.` : ''}
     </p>
 
-    <div style="background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;
-                padding:18px 22px;margin-bottom:20px">
+    <div style="background:#fef3c7;border:2px solid #f59e0b;padding:18px 22px;margin-bottom:20px">
       <div style="font-size:14px;font-weight:800;color:#92400e;margin-bottom:8px">&#9200; Action Required</div>
       <div style="font-size:13px;color:#78350f;line-height:1.75">
         Please confirm receipt or report any damage immediately.<br/>
@@ -894,7 +905,7 @@ exports.sendAcceptanceReminderEmail = async (p) => {
     to:          p.empEmail,
     cc:          cc.join(', '),
     subject:     `[AssetOps] ${urgencyLabel.replace(/&#\d+;/g, '')} — Laptop Acceptance Pending | ${p.assetId}`,
-    html:        wrap('linear-gradient(135deg,#d97706,#b45309)', '&#9200;', 'Acceptance Pending', 'AssetOps · Grasko IT', '', body, p.acceptanceLink || ''),
+    html:        wrap(...HDR.reminder, '&#9200;', 'Acceptance Pending', 'AssetOps · Mindteck IT', '', body, p.acceptanceLink || ''),
     attachments: getLogoAttachment(),
   });
 };

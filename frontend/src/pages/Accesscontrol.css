@@ -116,7 +116,6 @@
              acPulse 2s ease-in-out 0.3s infinite;
 }
 
-/* Critical stat badge */
 .ac-stat-critical::after {
   content: '!';
   position: absolute;
@@ -231,13 +230,33 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  /* FIX: allow horizontal scroll so ALL columns are reachable on any screen width */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .ac-table {
   width: 100%;
+  /* FIX: prevent table from collapsing columns — enforce a minimum total width */
+  /* sum of all th widths: 210+120+140+90+115+100+120+120 = 1015 */
+  min-width: 1015px;
   border-collapse: collapse;
+  /* FIX: fixed layout lets us control column widths explicitly */
+  table-layout: fixed;
 }
+
+/* ── FIX: explicit column widths so every column gets adequate space ── */
+/* Order: Employee | Access Type | Resource/URL | Granted On | Expiry | Status | Notes | Actions */
+/* Total = 210+120+140+90+115+100+120+120 = 1015px — fits comfortably at min-width */
+.ac-table th:nth-child(1) { width: 210px; }   /* Employee */
+.ac-table th:nth-child(2) { width: 120px; }   /* Access Type */
+.ac-table th:nth-child(3) { width: 140px; }   /* Resource / URL */
+.ac-table th:nth-child(4) { width:  90px; }   /* Granted On */
+.ac-table th:nth-child(5) { width: 115px; }   /* Expiry (date + chip) */
+.ac-table th:nth-child(6) { width: 100px; }   /* Status */
+.ac-table th:nth-child(7) { width: 120px; }   /* Notes */
+.ac-table th:nth-child(8) { width: 120px; }   /* Actions — 3 buttons × 30px + gaps */
+
 .ac-table th {
   padding: 11px 14px;
   font-size: 11px;
@@ -255,6 +274,8 @@
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
   font-size: 13px;
+  /* FIX: prevent any cell from overflowing its assigned column width */
+  overflow: hidden;
 }
 .ac-table tr:last-child td { border-bottom: none; }
 .ac-table tbody tr { transition: background 0.12s; }
@@ -285,9 +306,9 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.ac-emp-name  { font-weight: 600; font-size: 13.5px; }
-.ac-emp-meta  { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
-.ac-emp-email { font-size: 11px; color: var(--text-muted); font-family: var(--mono); margin-top: 1px; }
+.ac-emp-name  { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-emp-meta  { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-emp-email { font-size: 11px; color: var(--text-muted); font-family: var(--mono); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Type tag ── */
 .ac-type-tag {
@@ -352,6 +373,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  overflow: hidden;
 }
 .ac-resource-url {
   font-family: var(--mono);
@@ -359,13 +381,60 @@
   background: var(--surface2);
   padding: 2px 6px;
   border-radius: 4px;
-  word-break: break-word;
-  max-width: 200px;
+  /* FIX: clamp long URLs to one line with ellipsis */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
   color: var(--text);
 }
 
-/* ── Actions ── */
-.ac-actions { display: flex; gap: 5px; flex-wrap: nowrap; }
+/* ── Notes cell — FIX: clamp to 2 lines, show full text on hover via title attr ── */
+.ac-table td:nth-child(7) {
+  font-size: 12px;
+  color: var(--text-muted);
+  /* clamp to 2 lines */
+  display: table-cell;          /* keep as table cell */
+  max-width: 130px;
+  overflow: hidden;
+}
+
+/* Target the text content inside the notes td */
+.ac-notes-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  word-break: break-word;
+  cursor: default;
+}
+
+/* ── Actions column — FIX: guaranteed width, never clipped ── */
+.ac-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  align-items: center;
+  /* 3 buttons × 30px + 2 gaps × 4px = 98px guaranteed */
+  min-width: 98px;
+}
+
+/* Actions th/td sticky to right so it's always visible even on narrow viewports */
+.ac-table th:last-child,
+.ac-table td:last-child {
+  position: sticky;
+  right: 0;
+  background: var(--surface);
+  z-index: 1;
+  /* subtle left border to separate from scrolling content */
+  box-shadow: -2px 0 6px rgba(0,0,0,0.08);
+}
+.ac-table tbody tr:hover td:last-child {
+  background: var(--surface2, rgba(255,255,255,0.02));
+}
+
 .ac-action-btn {
   width: 30px;
   height: 30px;
@@ -988,7 +1057,6 @@
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* Header */
 .ac-audit-header {
   display: flex;
   align-items: center;
@@ -1016,7 +1084,6 @@
 .ac-audit-title h2 { font-size: 16px; font-weight: 700; color: var(--text); margin: 0; }
 .ac-audit-title p  { font-size: 12px; color: var(--text-muted); margin: 2px 0 0; }
 
-/* Filters */
 .ac-audit-filters {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
@@ -1080,7 +1147,6 @@
   border-color: var(--accent);
 }
 
-/* Per-action colour accents */
 .ac-audit-type-green  { color: #166534; border-color: #bbf7d0; background: #f0fdf4; }
 .ac-audit-type-red    { color: #991b1b; border-color: #fecaca; background: #fef2f2; }
 .ac-audit-type-amber  { color: #92400e; border-color: #fde68a; background: #fffbeb; }
@@ -1094,7 +1160,6 @@
 .ac-audit-type-blue.active   { background: #1e40af; color: white; border-color: #1e40af; }
 .ac-audit-type-purple.active { background: #5b21b6; color: white; border-color: #5b21b6; }
 
-/* Log list */
 .ac-audit-list { flex: 1; overflow-y: auto; padding: 6px 0; }
 
 .ac-audit-loading { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -1115,7 +1180,6 @@
 .ac-audit-empty svg { margin: 0 auto 12px; display: block; opacity: 0.35; }
 .ac-audit-empty p   { font-size: 13px; margin: 0; }
 
-/* Individual log items */
 .ac-audit-item {
   display: flex;
   gap: 13px;
@@ -1200,7 +1264,6 @@
 
 .ac-audit-ts { margin-left: auto; white-space: nowrap; }
 
-/* Pagination */
 .ac-audit-pagination {
   display: flex;
   align-items: center;
@@ -1218,12 +1281,16 @@
    RESPONSIVE
    ══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 1200px) {
-  .ac-resource-url { max-width: 150px; font-size: 10px; }
+  .ac-table th:nth-child(7) { width: 100px; }
+  .ac-resource-url { max-width: 90px; }
 }
 
 @media (max-width: 900px) {
   .ac-stats { grid-template-columns: repeat(3, 1fr); }
   .ac-audit-panel { width: 96vw; }
+  /* hide Notes column on smaller screens — data accessible via row expand later */
+  .ac-table th:nth-child(7),
+  .ac-table td:nth-child(7) { display: none; }
 }
 
 @media (max-width: 700px) {
@@ -1231,11 +1298,15 @@
   .ac-form-grid { grid-template-columns: 1fr; }
   .ac-type-grid { flex-direction: column; }
   .ac-type-content small { display: none; }
-  .ac-resource-url { max-width: 100px; }
   .ac-toast-container { width: calc(100vw - 32px); right: 16px; }
   .ac-format-options { flex-direction: column; }
   .ac-header-actions { flex-wrap: wrap; }
   .ac-audit-ts { display: none; }
+  /* also hide Resource/URL and Granted On on very small screens */
+  .ac-table th:nth-child(3),
+  .ac-table td:nth-child(3),
+  .ac-table th:nth-child(4),
+  .ac-table td:nth-child(4) { display: none; }
 }
 
 @media (max-width: 480px) {

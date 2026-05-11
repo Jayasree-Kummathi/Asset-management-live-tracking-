@@ -51,7 +51,6 @@ export default function SwapLaptop() {
   const [ccEmails, setCCEmails] = useState([]);
   const [done, setDone] = useState(false);
 
-  // ── NEW fields ──
   const [preparedBy, setPreparedBy] = useState('');
   const [issueImages, setIssueImages] = useState([]);
 
@@ -69,7 +68,6 @@ export default function SwapLaptop() {
   const oldAsset = alloc ? assets.find(a => a.id === alloc.assetId) : null;
   const newAsset = assets.find(a => a.id === newAssetId);
 
-  // Handle multiple issue images
   const handleIssueImages = (e) => {
     const files = Array.from(e.target.files);
     files.forEach(file => {
@@ -86,13 +84,18 @@ export default function SwapLaptop() {
     setIssueImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Select laptop AND advance to step 4 in one click
+  const handleSelectAndContinue = (assetId) => {
+    setNewAssetId(assetId);
+    setStep(4);
+  };
+
   const handleConfirm = async () => {
     await swapAsset(alloc.dbId, alloc.assetId, newAssetId, {
       issueType,
       issueDesc,
       oldCondition,
       extra_ccs: ccEmails,
-      // ── NEW ──
       prepared_by: preparedBy,
       issueImages: issueImages.map(img => img.src),
     });
@@ -176,32 +179,56 @@ export default function SwapLaptop() {
         </div>
       )}
 
-      {/* Step 3: Select New Laptop */}
+      {/* Step 3: Select New Laptop — Continue button on each row */}
       {step === 3 && (
         <div className="card fade-in">
           <div className="section-title">Step 3 — Select Replacement Laptop</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-            {stockAssets.length === 0 ? (
-              <div className="empty-state"><p>No laptops available in stock</p></div>
-            ) : stockAssets.map(a => (
-              <label key={a.id} style={{
-                display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
-                background: newAssetId === a.id ? 'var(--accent-glow)' : 'var(--surface2)',
-                border: `1px solid ${newAssetId === a.id ? 'var(--accent)' : 'var(--border)'}`,
-                borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.2s',
-              }}>
-                <input type="radio" name="newAsset" value={a.id} checked={newAssetId === a.id} onChange={() => setNewAssetId(a.id)} style={{ accentColor: 'var(--accent)' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: newAssetId === a.id ? 'var(--accent)' : 'var(--text)' }}>{a.id}</div>
-                  <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 2 }}>{a.brand} {a.model} — {a.config}</div>
+
+          {stockAssets.length === 0 ? (
+            <div className="empty-state"><p>No laptops available in stock</p></div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+              {stockAssets.map(a => (
+                <div
+                  key={a.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '14px 16px',
+                    background: 'var(--surface2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {/* Asset info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--text)' }}>{a.id}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 2 }}>
+                      {a.brand} {a.model} — {a.config}
+                    </div>
+                  </div>
+
+                  {/* Status badge */}
+                  <StatusBadge status={a.status} />
+
+                  {/* Continue button per row */}
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => handleSelectAndContinue(a.id)}
+                    style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    Select <ChevronRight size={13} />
+                  </button>
                 </div>
-                <StatusBadge status={a.status} />
-              </label>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {/* Only Back button at the bottom — no global Continue */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-secondary" onClick={() => setStep(2)}>Back</button>
-            <button className="btn btn-primary" disabled={!newAssetId} onClick={() => setStep(4)}>Continue <ChevronRight size={15} /></button>
           </div>
         </div>
       )}
@@ -246,7 +273,7 @@ export default function SwapLaptop() {
               </div>
             </div>
 
-            {/* ── NEW: Issue Documentation ── */}
+            {/* Issue Documentation */}
             <div className="card">
               <div className="section-title">
                 <AlertTriangle size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle', color: '#f59e0b' }} />
@@ -314,7 +341,7 @@ export default function SwapLaptop() {
               )}
             </div>
 
-            {/* ── NEW: Preparation Details ── */}
+            {/* Preparation Details */}
             <div className="card">
               <div className="section-title">
                 <Wrench size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
