@@ -5,6 +5,8 @@
   gap: 12px;
   margin-bottom: 12px;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
 }
 
 /* ── Asset ID chip ── */
@@ -23,6 +25,8 @@
   grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   margin-bottom: 16px;
+  position: relative;
+  z-index: 1;
 }
 
 @media (max-width: 900px) {
@@ -57,7 +61,6 @@
    BLINKING / PULSING EFFECTS FOR STAT CARDS
    ══════════════════════════════════════════════════════════ */
 
-/* Keyframes - Red (Critical: Expired warranty, Urgent alerts) */
 @keyframes pulseGlowRed {
   0%, 100% {
     box-shadow: 0 0 0 0px rgba(248, 113, 113, 0);
@@ -70,7 +73,6 @@
   }
 }
 
-/* Keyframes - Amber/Warning (Expiring soon, Low stock) */
 @keyframes pulseGlowAmber {
   0%, 100% {
     box-shadow: 0 0 0 0px rgba(245, 158, 11, 0);
@@ -83,7 +85,6 @@
   }
 }
 
-/* Keyframes - Green (Success: New allocation, Received from repair) */
 @keyframes pulseGlowGreen {
   0%, 100% {
     box-shadow: 0 0 0 0px rgba(52, 211, 153, 0);
@@ -96,7 +97,6 @@
   }
 }
 
-/* Keyframes - Blue (Info: Attention needed, Maintenance due) */
 @keyframes pulseGlowBlue {
   0%, 100% {
     box-shadow: 0 0 0 0px rgba(99, 102, 241, 0);
@@ -109,7 +109,6 @@
   }
 }
 
-/* Keyframes - Purple (Maintenance/Service alerts) */
 @keyframes pulseGlowPurple {
   0%, 100% {
     box-shadow: 0 0 0 0px rgba(168, 85, 247, 0);
@@ -122,7 +121,6 @@
   }
 }
 
-/* Alert card variants */
 .stat-card-alert-red {
   background: var(--surface);
   border-color: #f87171 !important;
@@ -158,21 +156,13 @@
              pulseGlowPurple 1.4s ease-in-out infinite;
 }
 
-/* Generic blink class - defaults to red */
 .stat-card-blink {
   animation: pulseGlowRed 1.4s ease-in-out infinite;
 }
 
-/* Different blink speeds */
-.blink-fast {
-  animation-duration: 0.8s !important;
-}
+.blink-fast { animation-duration: 0.8s !important; }
+.blink-slow { animation-duration: 2.2s !important; }
 
-.blink-slow {
-  animation-duration: 2.2s !important;
-}
-
-/* Pause blinking on hover for better UX (optional) */
 .stat-card-alert-red:hover,
 .stat-card-alert-amber:hover,
 .stat-card-alert-green:hover,
@@ -184,7 +174,6 @@
   transition: transform 0.15s ease;
 }
 
-/* Legacy support - keep original alert class */
 .stat-card-alert {
   background: var(--surface);
   border-color: #f87171 !important;
@@ -197,20 +186,29 @@
 .stat-label { font-size: 11.5px; color: var(--text-muted); font-weight: 500; }
 
 /* ══════════════════════════════════════════════════════════
-   Warranty Alert Banner
+   Warranty Alert Banner  ← FIXED: no longer overlaps table
    ══════════════════════════════════════════════════════════ */
 @keyframes bannerIn {
-  from { opacity: 0; transform: translateY(-8px); max-height: 0; }
-  to   { opacity: 1; transform: translateY(0); max-height: 600px; }
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .warranty-alert-banner {
+  /* KEY FIX: position relative + z-index keeps it in normal flow */
+  position: relative;
+  z-index: 2;
+
   background: var(--surface);
   border: 1px solid rgba(248,113,113,.3);
   border-left: 3px solid var(--red, #f87171);
   border-radius: var(--radius);
   padding: 12px 14px;
   margin-bottom: 16px;
+
+  /* KEY FIX: overflow hidden prevents children painting outside the banner */
+  overflow: hidden;
+
+  /* Removed max-height from animation — was the main cause of the bleed-through */
   animation: bannerIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -219,6 +217,8 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
 }
 
 .warranty-alert-title {
@@ -249,6 +249,9 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* KEY FIX: explicit positioning so items don't escape the banner */
+  position: relative;
+  z-index: 1;
 }
 
 .warranty-alert-item {
@@ -259,6 +262,8 @@
   border-radius: calc(var(--radius) - 2px);
   font-size: 12.5px;
   transition: background 0.12s;
+  /* KEY FIX: no position absolute/fixed — stays in flow */
+  position: relative;
 }
 .warranty-alert-item:hover { filter: brightness(1.06); }
 
@@ -283,6 +288,8 @@
   cursor: pointer;
   padding: 4px 0;
   transition: color 0.15s;
+  position: relative;
+  z-index: 1;
 }
 .warranty-show-more:hover { color: var(--text); }
 
@@ -321,6 +328,16 @@
 .wchip-expired .wchip-label { background: var(--red-bg); color: var(--red, #f87171); }
 .wchip-urgent  .wchip-label { background: rgba(251,191,36,.12); color: #f59e0b; }
 .wchip-warn    .wchip-label { background: rgba(251,191,36,.08); color: #d97706; }
+
+/* ══════════════════════════════════════════════════════════
+   Table wrapper — KEY FIX: own stacking context below banner
+   ══════════════════════════════════════════════════════════ */
+.table-wrap {
+  position: relative;
+  z-index: 1;
+  /* Ensures the table never paints above the banner's z-index:2 */
+  isolation: isolate;
+}
 
 /* ══════════════════════════════════════════════════════════
    History / Timeline
@@ -426,8 +443,8 @@
    Bulk Action Bar
    ══════════════════════════════════════════════════════════ */
 @keyframes bulkBarIn {
-  from { opacity: 0; transform: translateY(6px); max-height: 0; }
-  to   { opacity: 1; transform: translateY(0); max-height: 80px; }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .bulk-action-bar {
@@ -440,8 +457,11 @@
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   margin-bottom: 12px;
+  /* Removed max-height from animation to prevent layout bleed */
   animation: bulkBarIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
 }
 
 .bulk-action-left {
@@ -502,13 +522,12 @@
 /* ══════════════════════════════════════════════════════════
    Brand / Model Breakdown
    ══════════════════════════════════════════════════════════ */
-
 @keyframes bmdSlideIn {
   from { opacity: 0; transform: translateX(-20px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
-.bmd-card   { margin-bottom: 20px; }
+.bmd-card   { margin-bottom: 20px; position: relative; z-index: 1; }
 .bmd-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .bmd-list   { display: flex; flex-direction: column; gap: 8px; }
 

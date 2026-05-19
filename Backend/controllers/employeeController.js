@@ -35,8 +35,6 @@ const bootstrapColumn = async () => {
         console.log(`✅ Added ${col} column`);
       }
     }
-
-    // ── Bootstrap support_contacts table ─────────────────────────────────────
     const contactsCheck = await query(`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'support_contacts');`);
     if (!contactsCheck.rows[0].exists) {
       await query(`
@@ -53,14 +51,13 @@ const bootstrapColumn = async () => {
       `);
       await query(`
         INSERT INTO support_contacts (name, phone, email, role, sort_order) VALUES
-          ('Hari Patnaik',  '9916675460', 'sysadmin@mindteck.us',  'IT Head',         1),
-          ('Praveen MK',    '9500932816', NULL,                     'IT Support',      2),
-          ('Lokesh M',      '9100656740', NULL,                     'IT Support',      3),
-          ('Kondal Rao',    '9845327182', NULL,                     'IT Support',      4);
+          ('Hari Patnaik',  '9916675460', 'sysadmin@mindteck.us',  'IT Head',    1),
+          ('Praveen MK',    '9500932816', NULL,                     'IT Support', 2),
+          ('Lokesh M',      '9100656740', NULL,                     'IT Support', 3),
+          ('Kondal Rao',    '9845327182', NULL,                     'IT Support', 4);
       `);
       console.log('✅ support_contacts table created and seeded');
     }
-
     console.log('✅ Employee table columns verified');
   } catch (err) { console.warn('Bootstrap warning:', err.message); }
 };
@@ -135,43 +132,23 @@ const getSupportContacts = async () => {
 // ── Laptop status config ──────────────────────────────────────────────────────
 const LAPTOP_STATUS_MAP = {
   collected: {
-    label:     'Laptop Collected (Company Asset)',
-    icon:      '&#10003;',
-    iconBg:    '#dcfce7',
-    iconColor: '#166534',
-    badgeBg:   '#dcfce7',
-    badgeText: '#166534',
-    badgeBorder:'#86efac',
+    label: 'Laptop Collected (Company Asset)', icon: '&#10003;',
+    iconBg: '#dcfce7', iconColor: '#166534', badgeBg: '#dcfce7', badgeText: '#166534', badgeBorder: '#86efac',
     emailText: 'The company-issued laptop has been successfully collected from the employee.',
   },
   client_return: {
-    label:     'Client-Owned Laptop - To Be Returned to Client',
-    icon:      '&#127970;',
-    iconBg:    '#dbeafe',
-    iconColor: '#1e40af',
-    badgeBg:   '#dbeafe',
-    badgeText: '#1e40af',
-    badgeBorder:'#93c5fd',
+    label: 'Client-Owned Laptop - To Be Returned to Client', icon: '&#127970;',
+    iconBg: '#dbeafe', iconColor: '#1e40af', badgeBg: '#dbeafe', badgeText: '#1e40af', badgeBorder: '#93c5fd',
     emailText: 'The employee was using a client-owned laptop. Please confirm that the asset has been returned to the respective client.',
   },
   no_laptop: {
-    label:     'No Laptop Assigned',
-    icon:      '&#10007;',
-    iconBg:    '#f3f4f6',
-    iconColor: '#6b7280',
-    badgeBg:   '#f3f4f6',
-    badgeText: '#6b7280',
-    badgeBorder:'#d1d5db',
+    label: 'No Laptop Assigned', icon: '&#10007;',
+    iconBg: '#f3f4f6', iconColor: '#6b7280', badgeBg: '#f3f4f6', badgeText: '#6b7280', badgeBorder: '#d1d5db',
     emailText: 'No laptop or company asset was assigned to this employee.',
   },
   pending: {
-    label:     'Pending Verification',
-    icon:      '&#8987;',
-    iconBg:    '#fef3c7',
-    iconColor: '#92400e',
-    badgeBg:   '#fef3c7',
-    badgeText: '#92400e',
-    badgeBorder:'#fcd34d',
+    label: 'Pending Verification', icon: '&#8987;',
+    iconBg: '#fef3c7', iconColor: '#92400e', badgeBg: '#fef3c7', badgeText: '#92400e', badgeBorder: '#fcd34d',
     emailText: 'Laptop ownership and return status are pending verification. Please confirm with the client or reporting manager.',
   },
 };
@@ -183,48 +160,49 @@ const empPhotoBlock = (photoUrl, empName, size = 60) => {
     const url = photoUrl.trim();
     const src = url.startsWith('data:image') ? 'cid:emp_photo' : url;
     return `<img src="${src}" alt="${empName}" width="${size}" height="${size}"
-      style="width:${size}px;height:${size}px;border-radius:${size / 2}px;border:3px solid #ffffff;display:block;">`;
+      style="width:${size}px;height:${size}px;border-radius:${size/2}px;border:3px solid #ffffff;display:block;">`;
   }
   return `<table cellpadding="0" cellspacing="0" border="0" style="display:inline-table;">
     <tr><td width="${size}" height="${size}" align="center" valign="middle"
-      style="width:${size}px;height:${size}px;background-color:#1B5E3F;border-radius:${size / 2}px;
-      border:3px solid #ffffff;font-size:${Math.round(size * 0.38)}px;font-weight:900;
-      color:#ffffff;font-family:Arial,sans-serif;">
-      ${initial}
-    </td></tr>
+      style="width:${size}px;height:${size}px;background-color:#475569;border-radius:${size/2}px;
+      border:3px solid #ffffff;font-size:${Math.round(size*0.38)}px;font-weight:900;
+      color:#ffffff;font-family:Arial,sans-serif;">${initial}</td></tr>
   </table>`;
 };
 
-// ── Security tips HTML (Outlook-safe 3-column) ────────────────────────────────
+// ── Security tips HTML ────────────────────────────────────────────────────────
 const buildSecurityTipsHtml = () => {
   const tips = [
     { icon: '&#128274;', text: 'Lock your computer when stepping away' },
-    { icon: '&#128273;', text: 'Always use strong, hard-to-guess passwords' },
+    { icon: '&#128273;', text: 'Use strong, hard-to-guess passwords' },
     { icon: '&#128187;', text: 'Never install unauthorised software without IT approval' },
     { icon: '&#9993;',   text: 'Be cautious of suspicious emails &amp; links &mdash; report to IT' },
     { icon: '&#11015;',  text: 'Do not download attachments from untrusted sources' },
-    { icon: '&#128737;', text: 'Do not store personal software, license keys, or keygens on work laptops' },
+    { icon: '&#128737;', text: 'Do not store personal software or license keys on work laptops' },
   ];
+
   const rows = [];
   for (let i = 0; i < tips.length; i += 3) {
     const trio = tips.slice(i, i + 3);
+
     const cells = trio.map(t => `
-      <td width="33%" valign="top" align="center" style="padding:12px 8px;">
-        <table cellpadding="0" cellspacing="0" border="0" align="center">
-          <tr>
-            <td width="52" height="52" align="center" valign="middle"
-              style="width:52px;height:52px;background-color:#e8f5ee;border-radius:26px;font-size:22px;line-height:52px;font-family:Arial,sans-serif;">
+      <td width="33%" valign="top" style="padding:10px 6px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%">
+          <tr valign="middle">
+            <td width="44" height="44" align="center" valign="middle"
+              style="width:44px;height:44px;min-width:44px;background-color:#e8f5ee;
+              border-radius:22px;font-size:20px;line-height:44px;
+              font-family:Arial,sans-serif;text-align:center;">
               ${t.icon}
             </td>
-          </tr>
-          <tr>
-            <td align="center" style="padding-top:8px;font-size:11px;color:#374151;font-family:Arial,sans-serif;line-height:1.5;">
+            <td style="padding-left:8px;font-size:11px;color:#374151;
+              font-family:Arial,sans-serif;line-height:1.45;vertical-align:middle;">
               ${t.text}
             </td>
           </tr>
         </table>
-      </td>
-    `).join('');
+      </td>`).join('');
+
     let padded = cells;
     for (let j = trio.length; j < 3; j++) padded += '<td width="33%">&nbsp;</td>';
     rows.push(`<tr valign="top">${padded}</tr>`);
@@ -232,33 +210,87 @@ const buildSecurityTipsHtml = () => {
   return rows.join('');
 };
 
-// ── Support contacts HTML (Outlook-safe) ─────────────────────────────────────
-const buildSupportContactsHtml = (contacts) => {
-  return contacts.slice(0, 4).map(c => `
+// ── Support contacts HTML ─────────────────────────────────────────────────────
+const buildSupportContactsHtml = (contacts) =>
+  contacts.slice(0, 4).map(c => `
+    <tr><td style="padding:6px 0;border-bottom:1px solid #e8edf2;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr valign="middle">
+        <td width="32" height="32" align="center" valign="middle"
+          style="width:32px;height:32px;background-color:#e8f5ee;border-radius:16px;font-size:16px;font-family:Arial,sans-serif;">&#128100;</td>
+        <td style="padding-left:10px;" valign="middle">
+          <div style="font-size:12px;font-weight:700;color:#1a202c;font-family:Arial,sans-serif;">${c.name}</div>
+          <div style="font-size:11px;color:#718096;font-family:Arial,sans-serif;">${c.role || 'IT Support'}</div>
+        </td>
+        <td align="right" style="padding-right:4px;" valign="middle">
+          <div style="font-size:12px;font-weight:600;color:#1B5E3F;font-family:Arial,sans-serif;">${c.phone || ''}</div>
+        </td>
+      </tr></table>
+    </td></tr>`).join('');
+
+// ── EXIT DOOR ICON — FIX: Running man on RIGHT side (exiting away from door) ──
+// Door is on the LEFT, running man is on the RIGHT — he is clearly leaving/exiting
+const buildExitDoorIconHtml = () => `
+<table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 16px auto;">
+<tr><td align="center" valign="middle">
+
+  <!-- EXIT sign label -->
+  <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin-bottom:8px;">
     <tr>
-      <td style="padding:6px 0;border-bottom:1px solid #e8edf2;">
-        <table cellpadding="0" cellspacing="0" border="0" width="100%">
-          <tr valign="middle">
-            <td width="32" height="32" align="center" valign="middle"
-              style="width:32px;height:32px;background-color:#e8f5ee;border-radius:16px;font-size:16px;font-family:Arial,sans-serif;">
-              &#128100;
-            </td>
-            <td style="padding-left:10px;" valign="middle">
-              <div style="font-size:12px;font-weight:700;color:#1a202c;font-family:Arial,sans-serif;">${c.name}</div>
-              <div style="font-size:11px;color:#718096;font-family:Arial,sans-serif;">${c.role || 'IT Support'}</div>
-            </td>
-            <td align="right" style="padding-right:4px;" valign="middle">
-              <div style="font-size:12px;font-weight:600;color:#1B5E3F;font-family:Arial,sans-serif;">${c.phone || ''}</div>
-            </td>
+      <td width="64" height="18" align="center" valign="middle"
+        style="width:64px;height:18px;background-color:#ffffff;border-radius:3px;
+        font-size:10px;font-weight:900;color:#64748b;font-family:Arial,sans-serif;
+        letter-spacing:3px;text-align:center;line-height:18px;">
+        EXIT
+      </td>
+    </tr>
+  </table>
+
+  <!-- Door frame (LEFT) + Running man (RIGHT) side by side -->
+  <!-- Man is on the RIGHT running away = he is exiting the building -->
+  <table cellpadding="0" cellspacing="0" border="0" align="center">
+    <tr valign="bottom">
+
+      <!-- Door frame: left post | interior | right post — appears on LEFT -->
+      <td valign="bottom">
+        <table cellpadding="0" cellspacing="0" border="0">
+          <!-- Top bar -->
+          <tr>
+            <td colspan="3" height="5"
+              style="height:5px;background-color:#ffffff;border-radius:2px 2px 0 0;font-size:1px;">&nbsp;</td>
+          </tr>
+          <!-- Posts + interior -->
+          <tr valign="top">
+            <td width="5" height="48"
+              style="width:5px;height:48px;background-color:#ffffff;font-size:1px;">&nbsp;</td>
+            <td width="32" height="48"
+              style="width:32px;height:48px;background-color:rgba(255,255,255,0.12);font-size:1px;">&nbsp;</td>
+            <td width="5" height="48"
+              style="width:5px;height:48px;background-color:#ffffff;font-size:1px;">&nbsp;</td>
+          </tr>
+          <!-- Floor bar -->
+          <tr>
+            <td colspan="3" height="5"
+              style="height:5px;background-color:#ffffff;border-radius:0 0 2px 2px;font-size:1px;">&nbsp;</td>
           </tr>
         </table>
       </td>
+
+      <!-- Running man: NOW on the RIGHT side — running away from/out of the door ✅ -->
+      <td valign="bottom" align="center"
+        style="font-size:38px;font-family:Arial,sans-serif;line-height:1;
+        padding-left:4px;padding-bottom:6px;color:#ffffff;">
+        &#x1F3C3;
+      </td>
+
     </tr>
-  `).join('');
-};
+  </table>
+
+</td></tr>
+</table>`;
+
 
 // ══════════════════════════════════════════════════════════════════════════════
-// BUILD WELCOME EMAIL HTML  (Outlook-safe)
+// BUILD WELCOME EMAIL HTML
 // ══════════════════════════════════════════════════════════════════════════════
 const buildWelcomeEmailHtml = async (emp, showPassword) => {
   const {
@@ -268,10 +300,11 @@ const buildWelcomeEmailHtml = async (emp, showPassword) => {
     company_email_password,
   } = emp;
 
-  const firstName = emp_name.split(' ')[0];
-  const loginUrl  = (portal_url && portal_url.trim()) ? portal_url.trim() : HELPDESK_URL;
-  const logoAtts  = getLogoAttachment();
-  const hasLogo   = logoAtts.length > 0;
+  const firstName = (emp_name || '').split(' ')[0] || 'Employee';
+
+  const loginUrl = (portal_url && portal_url.trim()) ? portal_url.trim() : HELPDESK_URL;
+  const logoAtts = getLogoAttachment();
+  const hasLogo  = logoAtts.length > 0;
 
   const dojFormatted = doj
     ? new Date(doj).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -287,55 +320,44 @@ const buildWelcomeEmailHtml = async (emp, showPassword) => {
   const supportContactsHtml = buildSupportContactsHtml(supportContacts);
   const securityTipsHtml    = buildSecurityTipsHtml();
 
-  // Password block — Outlook safe (no div display:inline-block)
   const passwordBlock = showPassword && company_email_password
     ? `<tr>
         <td colspan="2" style="padding:0;">
-          <table width="100%" cellpadding="0" cellspacing="0" border="0"
-            style="background-color:#0a3d20;border-top:2px solid #065f33;">
-            <tr>
-              <td style="padding:14px 16px 12px;">
-                <div style="font-size:10px;font-weight:800;color:#6ee7a7;font-family:Arial,sans-serif;
-                  letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">
-                  &#128274;&nbsp;&nbsp;YOUR PASSWORD
-                </div>
-                <table cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td style="background-color:#ffffff;border-radius:6px;padding:12px 24px;">
-                      <span style="font-family:'Courier New',Courier,monospace;font-size:22px;
-                        font-weight:900;color:#0a3d20;letter-spacing:3px;">
-                        ${company_email_password}
-                      </span>
-                    </td>
-                  </tr>
-                </table>
-                <div style="margin-top:10px;font-size:11px;color:#a7f3d0;font-family:Arial,sans-serif;">
-                  &#9888;&nbsp; Change this immediately on first login
-                </div>
-              </td>
-            </tr>
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0a3d20;border-top:2px solid #065f33;">
+            <tr><td style="padding:14px 16px 12px;">
+              <div style="font-size:10px;font-weight:800;color:#6ee7a7;font-family:Arial,sans-serif;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">
+                &#128274;&nbsp;&nbsp;YOUR PASSWORD
+              </div>
+              <table cellpadding="0" cellspacing="0" border="0"><tr>
+                <td style="background-color:#ffffff;border-radius:6px;padding:12px 24px;">
+                  <span style="font-family:'Courier New',Courier,monospace;font-size:22px;font-weight:900;color:#0a3d20;letter-spacing:3px;">
+                    ${company_email_password}
+                  </span>
+                </td>
+              </tr></table>
+              <div style="margin-top:10px;font-size:11px;color:#a7f3d0;font-family:Arial,sans-serif;">
+                &#9888;&nbsp; Change this immediately on first login
+              </div>
+            </td></tr>
           </table>
         </td>
       </tr>`
     : showPassword === false && company_email_password
       ? `<tr>
           <td colspan="2" style="padding:10px 16px;background-color:#fef9c3;border-top:1px solid #fde047;">
-            <table cellpadding="0" cellspacing="0" border="0">
-              <tr valign="middle">
-                <td style="font-size:16px;font-family:Arial,sans-serif;">&#128274;</td>
-                <td style="padding-left:10px;font-size:12px;color:#92400e;font-family:Arial,sans-serif;">
-                  <strong>Password:</strong> Sent confidentially to the employee only.
-                </td>
-              </tr>
-            </table>
+            <table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
+              <td style="font-size:16px;font-family:Arial,sans-serif;">&#128274;</td>
+              <td style="padding-left:10px;font-size:12px;color:#92400e;font-family:Arial,sans-serif;">
+                <strong>Password:</strong> Sent confidentially to the employee only.
+              </td>
+            </tr></table>
           </td>
         </tr>`
       : '';
 
-  // Profile rows
   const profileRows = [
     ['Employee ID',       `<strong style="color:#1B5E3F;font-size:12px;">${emp_id}</strong>`],
-    ['Full Name',         `<strong style="color:#0f172a;font-size:12px;">${emp_name}</strong>`],
+    ['Full Name',         `<strong style="color:#0f172a;font-size:12px;">${emp_name || 'N/A'}</strong>`],
     ['Designation',       `<span style="color:#0f172a;">${designation || 'N/A'}</span>`],
     ['Service Line',      `<span style="color:#0f172a;">${service_line || 'N/A'}</span>`],
     ['Location',          `<span style="color:#0f172a;">${location || 'N/A'}</span>`],
@@ -343,10 +365,8 @@ const buildWelcomeEmailHtml = async (emp, showPassword) => {
     ['Date of Joining',   `<strong style="color:#1B5E3F;font-size:12px;">${dojFormatted}</strong>`],
   ].map(([label, value], i) => `
     <tr style="background-color:${i % 2 === 0 ? '#ffffff' : '#f7faf8'};">
-      <td style="padding:8px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;
-        border-bottom:1px solid #edf0f2;width:44%;">${label}</td>
-      <td style="padding:8px 12px;font-size:11px;font-family:Arial,sans-serif;
-        border-bottom:1px solid #edf0f2;">${value}</td>
+      <td style="padding:8px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;width:44%;">${label}</td>
+      <td style="padding:8px 12px;font-size:11px;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;">${value}</td>
     </tr>`).join('');
 
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -355,252 +375,174 @@ const buildWelcomeEmailHtml = async (emp, showPassword) => {
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Welcome to Mindteck</title>
-<!--[if mso]>
-<style type="text/css">
-  table { border-collapse: collapse; }
-  .outlook-fix { width: 620px !important; }
-</style>
-<![endif]-->
+<!--[if mso]><style type="text/css">table{border-collapse:collapse;}.outlook-fix{width:620px !important;}</style><![endif]-->
 </head>
 <body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-
-<!-- Wrapper -->
 <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f3f4f6">
 <tr><td align="center" style="padding:20px 12px;">
-
-  <!-- Main container -->
   <table class="outlook-fix" width="620" cellpadding="0" cellspacing="0" border="0"
     style="max-width:620px;width:100%;background-color:#ffffff;border-radius:12px;">
 
-    <!-- ═══ HEADER ═══ -->
+    <!-- HEADER -->
     <tr>
       <td style="padding:18px 24px;background-color:#ffffff;border-bottom:3px solid #1B5E3F;border-radius:12px 12px 0 0;">
-        <table width="100%" cellpadding="0" cellspacing="0" border="0">
-          <tr valign="middle">
-            <td valign="middle">
-              ${hasLogo
-                ? `<img src="cid:mindteck_logo" alt="Mindteck" height="44" style="display:block;height:44px;border:0;">`
-                : `<table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
-                     <td width="40" height="40" align="center" valign="middle"
-                       style="width:40px;height:40px;background-color:#1B5E3F;border-radius:20px;
-                       font-size:19px;font-weight:900;color:#ffffff;font-family:Arial,sans-serif;">M</td>
-                     <td style="padding-left:10px;" valign="middle">
-                       <div style="font-size:20px;font-weight:900;color:#1B5E3F;font-family:Arial,sans-serif;line-height:1.1;">Mindteck</div>
-                       <div style="font-size:9px;color:#888888;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">INFORMATION TECHNOLOGY</div>
-                     </td>
-                   </tr></table>`
-              }
-            </td>
-            <td align="right" valign="middle">
-              <table cellpadding="0" cellspacing="0" border="0" align="right">
-                <tr>
-                  <td style="background-color:#1B5E3F;border-radius:8px;padding:8px 16px;" align="right">
-                    <div style="font-size:12px;color:rgba(255,255,255,0.85);font-family:Arial,sans-serif;">&#128197; ${dojShort}</div>
-                    <div style="font-size:12px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;margin-top:3px;">${designation || 'Team Member'}</div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
+          <td valign="middle">
+            ${hasLogo
+              ? `<img src="cid:mindteck_logo" alt="Mindteck" height="44" style="display:block;height:44px;border:0;">`
+              : `<table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
+                   <td width="40" height="40" align="center" valign="middle"
+                     style="width:40px;height:40px;background-color:#1B5E3F;border-radius:20px;font-size:19px;font-weight:900;color:#ffffff;font-family:Arial,sans-serif;">M</td>
+                   <td style="padding-left:10px;" valign="middle">
+                     <div style="font-size:20px;font-weight:900;color:#1B5E3F;font-family:Arial,sans-serif;line-height:1.1;">Mindteck</div>
+                     <div style="font-size:9px;color:#888888;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">INFORMATION TECHNOLOGY</div>
+                   </td>
+                 </tr></table>`}
+          </td>
+          <td align="right" valign="middle">
+            <table cellpadding="0" cellspacing="0" border="0" align="right"><tr>
+              <td style="background-color:#1B5E3F;border-radius:8px;padding:8px 16px;" align="right">
+                <div style="font-size:12px;color:rgba(255,255,255,0.85);font-family:Arial,sans-serif;">&#128197; ${dojShort}</div>
+                <div style="font-size:12px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;margin-top:3px;">${designation || 'Team Member'}</div>
+              </td>
+            </tr></table>
+          </td>
+        </tr></table>
       </td>
     </tr>
 
-    <!-- ═══ BODY ═══ -->
-    <tr>
-      <td style="padding:28px 28px 8px;">
+    <!-- BODY -->
+    <tr><td style="padding:28px 28px 8px;">
+      <div style="font-size:22px;font-weight:800;color:#1a202c;font-family:Arial,sans-serif;margin-bottom:10px;">
+        &#127881; Dear ${firstName},
+      </div>
+      <div style="font-size:13px;color:#4a5568;line-height:1.75;font-family:Arial,sans-serif;margin-bottom:24px;">
+        Welcome to <strong style="color:#1B5E3F;">Mindteck Family</strong>! &#127775; We're happy to have you on board.<br>
+        Your IT access has been set up. Here are your credentials and important details.
+      </div>
 
-        <!-- Greeting -->
-        <div style="font-size:22px;font-weight:800;color:#1a202c;font-family:Arial,sans-serif;margin-bottom:10px;">
-          &#127881; Dear ${firstName},
-        </div>
-        <div style="font-size:13px;color:#4a5568;line-height:1.75;font-family:Arial,sans-serif;margin-bottom:24px;">
-          Welcome to <strong style="color:#1B5E3F;">Mindteck Family</strong>! &#127775; We're happy to have you on board.<br>
-          Your IT access has been set up. Here are your credentials and important details.
-        </div>
-
-        <!-- ── TWO COLUMN: Profile + Credentials ── -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;">
-          <tr valign="top">
-
-            <!-- LEFT: Employee Profile -->
-            <td width="48%" valign="top" style="padding-right:10px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0"
-                style="border:1px solid #d1d5db;border-radius:10px;">
-                <tr>
-                  <td style="padding:11px 14px;background-color:#1B5E3F;border-radius:10px 10px 0 0;border-bottom:1px solid #155a38;">
-                    <table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
-                      <td style="font-size:16px;font-family:Arial,sans-serif;padding-right:8px;">&#128100;</td>
-                      <td style="font-size:11px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;letter-spacing:0.8px;text-transform:uppercase;">Employee Profile</td>
-                    </tr></table>
-                  </td>
-                </tr>
-                ${profileRows}
-              </table>
-            </td>
-
-            <!-- RIGHT: Login Credentials -->
-            <td width="52%" valign="top" style="padding-left:10px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0"
-                style="border:2px solid #065f33;border-radius:10px;">
-                <tr>
-                  <td colspan="2" style="padding:11px 14px;background-color:#1B5E3F;border-radius:10px 10px 0 0;border-bottom:2px solid #065f33;">
-                    <table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
-                      <td style="font-size:16px;font-family:Arial,sans-serif;padding-right:8px;">&#128274;</td>
-                      <td style="font-size:11px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;letter-spacing:0.8px;text-transform:uppercase;">Login Credentials</td>
-                    </tr></table>
-                  </td>
-                </tr>
-                <!-- Portal URL -->
-                <tr style="background-color:#ffffff;">
-                  <td style="padding:9px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;width:38%;">
-                    &#127760; Portal URL
-                  </td>
-                  <td style="padding:9px 12px;font-size:11px;border-bottom:1px solid #edf0f2;font-family:Arial,sans-serif;">
-                    <a href="${loginUrl}" style="color:#2563eb;text-decoration:none;font-weight:600;">${loginUrl}</a>
-                  </td>
-                </tr>
-                <!-- Username -->
-                <tr style="background-color:#f7faf8;">
-                  <td style="padding:9px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;">
-                    &#128100; Username
-                  </td>
-                  <td style="padding:9px 12px;font-size:11px;font-weight:700;color:#0f172a;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #edf0f2;">
-                    ${company_email || personal_email || 'See IT team'}
-                  </td>
-                </tr>
-                <!-- Password row -->
-                ${passwordBlock}
-                <!-- Important notice (only when password not shown) -->
-                ${!showPassword || !company_email_password ? `
-                <tr>
-                  <td colspan="2" style="padding:10px 12px;background-color:#fffbeb;border-top:1px solid #fef3c7;">
-                    <table cellpadding="0" cellspacing="0" border="0"><tr valign="top">
-                      <td style="font-size:16px;font-family:Arial,sans-serif;width:22px;">&#9888;</td>
-                      <td style="padding-left:8px;font-size:11px;color:#92400e;font-family:Arial,sans-serif;line-height:1.5;">
-                        <strong>Important:</strong> Please change your password immediately on first login.
-                      </td>
-                    </tr></table>
-                  </td>
-                </tr>` : ''}
-              </table>
-            </td>
-          </tr>
-        </table>
-
-        <!-- ── IT SECURITY TIPS ── -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0"
-          style="margin-bottom:20px;border:1px solid #e2e8f0;border-radius:10px;">
-          <tr>
-            <td style="padding:13px 18px;background-color:#f8fafb;border-bottom:1px solid #e2e8f0;border-radius:10px 10px 0 0;">
+      <!-- Profile + Credentials -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:22px;"><tr valign="top">
+        <td width="48%" valign="top" style="padding-right:10px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #d1d5db;border-radius:10px;">
+            <tr><td style="padding:11px 14px;background-color:#1B5E3F;border-radius:10px 10px 0 0;border-bottom:1px solid #155a38;">
               <table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
-                <td style="font-size:18px;font-family:Arial,sans-serif;padding-right:8px;">&#128737;</td>
-                <td style="font-size:11px;font-weight:700;color:#374151;font-family:Arial,sans-serif;letter-spacing:0.8px;text-transform:uppercase;">IT Security Tips</td>
+                <td style="font-size:16px;font-family:Arial,sans-serif;padding-right:8px;">&#128100;</td>
+                <td style="font-size:11px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;letter-spacing:0.8px;text-transform:uppercase;">Employee Profile</td>
+              </tr></table>
+            </td></tr>
+            ${profileRows}
+          </table>
+        </td>
+        <td width="52%" valign="top" style="padding-left:10px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:2px solid #065f33;border-radius:10px;">
+            <tr><td colspan="2" style="padding:11px 14px;background-color:#1B5E3F;border-radius:10px 10px 0 0;border-bottom:2px solid #065f33;">
+              <table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
+                <td style="font-size:16px;font-family:Arial,sans-serif;padding-right:8px;">&#128274;</td>
+                <td style="font-size:11px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;letter-spacing:0.8px;text-transform:uppercase;">Login Credentials</td>
+              </tr></table>
+            </td></tr>
+            <tr style="background-color:#ffffff;">
+              <td style="padding:9px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;width:38%;">&#127760; Portal URL</td>
+              <td style="padding:9px 12px;font-size:11px;border-bottom:1px solid #edf0f2;font-family:Arial,sans-serif;">
+                <a href="${loginUrl}" style="color:#2563eb;text-decoration:none;font-weight:600;">${loginUrl}</a>
+              </td>
+            </tr>
+            <tr style="background-color:#f7faf8;">
+              <td style="padding:9px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;">&#128100; Username</td>
+              <td style="padding:9px 12px;font-size:11px;font-weight:700;color:#0f172a;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #edf0f2;">
+                ${company_email || personal_email || 'See IT team'}
+              </td>
+            </tr>
+            ${passwordBlock}
+            ${!showPassword || !company_email_password ? `
+            <tr><td colspan="2" style="padding:10px 12px;background-color:#fffbeb;border-top:1px solid #fef3c7;">
+              <table cellpadding="0" cellspacing="0" border="0"><tr valign="top">
+                <td style="font-size:16px;font-family:Arial,sans-serif;width:22px;">&#9888;</td>
+                <td style="padding-left:8px;font-size:11px;color:#92400e;font-family:Arial,sans-serif;line-height:1.5;">
+                  <strong>Important:</strong> Please change your password immediately on first login.
+                </td>
+              </tr></table>
+            </td></tr>` : ''}
+          </table>
+        </td>
+      </tr></table>
+
+      <!-- IT Security Tips -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;border:1px solid #e2e8f0;border-radius:10px;">
+        <tr><td style="padding:13px 18px;background-color:#f8fafb;border-bottom:1px solid #e2e8f0;border-radius:10px 10px 0 0;">
+          <table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
+            <td style="font-size:18px;font-family:Arial,sans-serif;padding-right:8px;">&#128737;</td>
+            <td style="font-size:11px;font-weight:700;color:#374151;font-family:Arial,sans-serif;letter-spacing:0.8px;text-transform:uppercase;">IT Security Tips</td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="padding:8px 8px 12px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">${securityTipsHtml}</table>
+        </td></tr>
+      </table>
+
+      <!-- Need Help -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;border:1px solid #c6e6d1;border-radius:10px;">
+        <tr><td style="padding:13px 18px;background-color:#f0fdf4;border-bottom:1px solid #c6e6d1;border-radius:10px 10px 0 0;">
+          <table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
+            <td style="font-size:18px;font-family:Arial,sans-serif;padding-right:8px;">&#127911;</td>
+            <td style="font-size:11px;font-weight:700;color:#166534;font-family:Arial,sans-serif;letter-spacing:0.8px;text-transform:uppercase;">Need Help?</td>
+          </tr></table>
+          <div style="font-size:12px;color:#374151;font-family:Arial,sans-serif;margin-top:4px;">
+            For any IT support or assistance, please use our Helpdesk portal or contact the IT team below.
+          </div>
+        </td></tr>
+        <tr><td style="padding:16px 18px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr valign="top">
+            <td width="28%" valign="top" style="padding-right:12px;">
+              <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+                <td align="center" style="background-color:#1B5E3F;border-radius:8px;padding:12px 10px;">
+                  <a href="${HELPDESK_URL}" style="color:#ffffff;text-decoration:none;font-size:12px;font-weight:700;font-family:Arial,sans-serif;">&#128279; Open Helpdesk Portal</a>
+                </td>
               </tr></table>
             </td>
-          </tr>
-          <tr>
-            <td style="padding:8px 8px 12px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                ${securityTipsHtml}
-              </table>
-            </td>
-          </tr>
-        </table>
-
-        <!-- ── NEED HELP ── -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0"
-          style="margin-bottom:20px;border:1px solid #c6e6d1;border-radius:10px;">
-          <tr>
-            <td style="padding:13px 18px;background-color:#f0fdf4;border-bottom:1px solid #c6e6d1;border-radius:10px 10px 0 0;">
-              <table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
-                <td style="font-size:18px;font-family:Arial,sans-serif;padding-right:8px;">&#127911;</td>
-                <td style="font-size:11px;font-weight:700;color:#166534;font-family:Arial,sans-serif;letter-spacing:0.8px;text-transform:uppercase;">Need Help?</td>
-              </tr></table>
-              <div style="font-size:12px;color:#374151;font-family:Arial,sans-serif;margin-top:4px;">
-                For any IT support or assistance, please use our Helpdesk portal or contact the IT team below.
+            <td width="30%" valign="top" style="padding:0 12px;border-left:1px solid #e2e8f0;">
+              <div style="margin-bottom:10px;">
+                <div style="font-size:11px;color:#718096;font-family:Arial,sans-serif;">&#9993; Email</div>
+                <div style="font-size:12px;font-weight:600;font-family:Arial,sans-serif;margin-top:2px;">
+                  <a href="mailto:${supportEmail}" style="color:#1B5E3F;text-decoration:none;">${supportEmail}</a>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:#718096;font-family:Arial,sans-serif;">&#128222; Landline</div>
+                <div style="font-size:12px;font-weight:600;color:#1a202c;font-family:Arial,sans-serif;margin-top:2px;">41548000 / Ext: 8091, 8092</div>
               </div>
             </td>
-          </tr>
-          <tr>
-            <td style="padding:16px 18px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr valign="top">
-                  <!-- Helpdesk button -->
-                  <td width="28%" valign="top" style="padding-right:12px;">
-                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                      <tr>
-                        <td align="center" style="background-color:#1B5E3F;border-radius:8px;padding:12px 10px;">
-                          <a href="${HELPDESK_URL}" style="color:#ffffff;text-decoration:none;font-size:12px;font-weight:700;font-family:Arial,sans-serif;">
-                            &#128279; Open Helpdesk Portal
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                  <!-- Email + Landline -->
-                  <td width="30%" valign="top" style="padding:0 12px;border-left:1px solid #e2e8f0;">
-                    <div style="margin-bottom:10px;">
-                      <div style="font-size:11px;color:#718096;font-family:Arial,sans-serif;">&#9993; Email</div>
-                      <div style="font-size:12px;font-weight:600;font-family:Arial,sans-serif;margin-top:2px;">
-                        <a href="mailto:${supportEmail}" style="color:#1B5E3F;text-decoration:none;">${supportEmail}</a>
-                      </div>
-                    </div>
-                    <div>
-                      <div style="font-size:11px;color:#718096;font-family:Arial,sans-serif;">&#128222; Landline</div>
-                      <div style="font-size:12px;font-weight:600;color:#1a202c;font-family:Arial,sans-serif;margin-top:2px;">41548000 / Ext: 8091, 8092</div>
-                    </div>
-                  </td>
-                  <!-- Support contacts -->
-                  <td width="42%" valign="top" style="padding-left:12px;border-left:1px solid #e2e8f0;">
-                    <div style="font-size:11px;font-weight:700;color:#374151;font-family:Arial,sans-serif;letter-spacing:0.5px;margin-bottom:6px;">
-                      &#128101; Support Contacts
-                    </div>
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                      ${supportContactsHtml}
-                    </table>
-                  </td>
-                </tr>
-              </table>
+            <td width="42%" valign="top" style="padding-left:12px;border-left:1px solid #e2e8f0;">
+              <div style="font-size:11px;font-weight:700;color:#374151;font-family:Arial,sans-serif;letter-spacing:0.5px;margin-bottom:6px;">&#128101; Support Contacts</div>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">${supportContactsHtml}</table>
             </td>
-          </tr>
-        </table>
+          </tr></table>
+        </td></tr>
+      </table>
 
-        <!-- ── SIGN-OFF ── -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0"
-          style="margin-bottom:20px;background-color:#f0fdf4;border:1px solid #c6e6d1;border-radius:10px;">
-          <tr>
-            <td style="padding:16px 20px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr valign="middle">
-                  <td width="56" style="font-size:38px;font-family:Arial,sans-serif;padding-right:16px;">&#128077;</td>
-                  <td valign="middle">
-                    <div style="font-size:14px;font-weight:700;color:#1B5E3F;font-family:Arial,sans-serif;margin-bottom:4px;">
-                      Wishing you all the very best in your new role! &#127881;
-                    </div>
-                    <div style="font-size:12px;color:#4a5568;font-family:Arial,sans-serif;">
-                      We look forward to working with you and growing together. &#127775;
-                    </div>
-                  </td>
-                  <td width="56" align="right" style="font-size:38px;font-family:Arial,sans-serif;">&#127775;</td>
-                </tr>
-              </table>
+      <!-- Sign-off -->
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;background-color:#f0fdf4;border:1px solid #c6e6d1;border-radius:10px;">
+        <tr><td style="padding:16px 20px;">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
+            <td width="56" style="font-size:38px;font-family:Arial,sans-serif;padding-right:16px;">&#128077;</td>
+            <td valign="middle">
+              <div style="font-size:14px;font-weight:700;color:#1B5E3F;font-family:Arial,sans-serif;margin-bottom:4px;">Wishing you all the very best in your new role! &#127881;</div>
+              <div style="font-size:12px;color:#4a5568;font-family:Arial,sans-serif;">We look forward to working with you and growing together. &#127775;</div>
             </td>
-          </tr>
-        </table>
+            <td width="56" align="right" style="font-size:38px;font-family:Arial,sans-serif;">&#127775;</td>
+          </tr></table>
+        </td></tr>
+      </table>
+    </td></tr>
 
-      </td>
-    </tr>
-
-    <!-- ═══ FOOTER ═══ -->
-    <tr>
-      <td style="background-color:#1B5E3F;padding:14px 24px;border-radius:0 0 12px 12px;" align="center">
-        <div style="font-size:11px;color:rgba(255,255,255,0.8);font-family:Arial,sans-serif;line-height:1.8;">
-          This is an automated message from <strong style="color:#ffffff;">Mindteck IT Team</strong> &bull; AssetOps System<br>
-          &copy; ${new Date().getFullYear()} Mindteck &bull; All rights reserved
-        </div>
-      </td>
-    </tr>
+    <!-- FOOTER -->
+    <tr><td style="background-color:#1B5E3F;padding:14px 24px;border-radius:0 0 12px 12px;" align="center">
+      <div style="font-size:11px;color:rgba(255,255,255,0.8);font-family:Arial,sans-serif;line-height:1.8;">
+        This is an automated message from <strong style="color:#ffffff;">Mindteck IT Team</strong> &bull; AssetOps System<br>
+        &copy; ${new Date().getFullYear()} Mindteck &bull; All rights reserved
+      </div>
+    </td></tr>
 
   </table>
 </td></tr>
@@ -615,8 +557,7 @@ const buildWelcomeEmailHtml = async (emp, showPassword) => {
 // ══════════════════════════════════════════════════════════════════════════════
 const sendWelcomeEmail = async (emp) => {
   const { emp_name, company_email, personal_email, cc_emails } = emp;
-
-  const firstName = emp_name.split(' ')[0];
+  const firstName = (emp_name || '').split(' ')[0] || 'Employee';
   const toList    = [company_email, personal_email].filter(Boolean);
   if (!toList.length) return;
 
@@ -626,26 +567,20 @@ const sendWelcomeEmail = async (emp) => {
   const logoAtts  = getLogoAttachment();
   const photoAtts = getEmpPhotoAttachment(emp.photo_url);
 
-  // Email 1: TO employee — password VISIBLE
   const htmlWithPassword = await buildWelcomeEmailHtml(emp, true);
   await transporter.sendMail({
-    from:        FROM,
-    to:          toList.join(', '),
-    subject:     `Welcome to Mindteck, ${firstName}! — Your IT Access & Credentials`,
-    html:        htmlWithPassword,
-    attachments: [...logoAtts, ...photoAtts],
+    from: FROM, to: toList.join(', '),
+    subject: `Welcome to Mindteck, ${firstName}! — Your IT Access & Credentials`,
+    html: htmlWithPassword, attachments: [...logoAtts, ...photoAtts],
   });
   console.log(`✅ Welcome email (with credentials) sent to ${emp_name}: ${toList.join(', ')}`);
 
-  // Email 2: CC recipients — password HIDDEN
   if (ccList.length > 0) {
     const htmlNoPwd = await buildWelcomeEmailHtml(emp, false);
     await transporter.sendMail({
-      from:        FROM,
-      to:          ccList.join(', '),
-      subject:     `Welcome to Mindteck, ${firstName}! — New Employee Onboarding Notification`,
-      html:        htmlNoPwd,
-      attachments: [...logoAtts, ...photoAtts],
+      from: FROM, to: ccList.join(', '),
+      subject: `Welcome to Mindteck, ${firstName}! — New Employee Onboarding Notification`,
+      html: htmlNoPwd, attachments: [...logoAtts, ...photoAtts],
     });
     console.log(`✅ Welcome notification (without password) sent to CC: ${ccList.join(', ')}`);
   }
@@ -653,16 +588,24 @@ const sendWelcomeEmail = async (emp) => {
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// EXIT EMAIL  — Outlook-safe, laptop status included
+// EXIT EMAIL — GREY/SLATE theme + Running man on RIGHT (exiting) — FIXED
 // ══════════════════════════════════════════════════════════════════════════════
 const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
   const {
-    emp_id, emp_name, designation, service_line,
-    company_email, personal_email, location,
-    reporting_manager, doj, cc_emails, photo_url,
+    emp_id,
+    emp_name,
+    designation,
+    service_line,
+    company_email,
+    personal_email,
+    location,
+    reporting_manager,
+    doj,
+    cc_emails,
+    photo_url,
   } = emp;
 
-  const logoAtts  = getLogoAttachment();
+  const logoAtts = getLogoAttachment();
   const photoAtts = getEmpPhotoAttachment(photo_url);
 
   const ccEmails = (cc_emails || '')
@@ -679,160 +622,104 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
   } else if (ccEmails.length > 0) {
     toList = [ccEmails[0]];
     ccList = ccEmails.slice(1);
-    console.log(`ℹ️  No HR_EMAIL — sending exit email to first CC: ${toList[0]}`);
+    console.log(`ℹ️ No HR_EMAIL — sending exit email to first CC: ${toList[0]}`);
   } else {
-    console.log(`ℹ️  No recipients configured for exit email — skipping for ${emp_name}`);
+    console.log(`ℹ️ No recipients configured for exit email — skipping for ${emp_name}`);
     return;
   }
 
   console.log(`📧 Exit email TO: ${toList.join(', ')} | CC: ${ccList.join(', ') || 'none'}`);
 
-  const deletedDate  = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const dojFormatted = doj ? new Date(doj).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+  const deletedDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
-  // ── Laptop status block ───────────────────────────────────────────────────
+  const dojFormatted = doj
+    ? new Date(doj).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : 'N/A';
+
   const laptopStatusKey = checklist.laptop_status || '';
-  const laptopInfo      = LAPTOP_STATUS_MAP[laptopStatusKey] || null;
+  const laptopInfo = LAPTOP_STATUS_MAP[laptopStatusKey] || null;
 
   const laptopStatusRow = laptopInfo
-    ? `<tr>
-        <td style="padding:9px 14px;border-bottom:1px solid #f1f5f9;font-family:Arial,sans-serif;">
-          <table cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr valign="middle">
-              <td width="26" height="26" align="center" valign="middle"
-                style="width:26px;height:26px;background-color:${laptopInfo.iconBg};
-                border-radius:4px;border:1px solid ${laptopInfo.badgeBorder};
-                font-size:14px;font-family:Arial,sans-serif;">
-                ${laptopInfo.icon}
-              </td>
-              <td style="padding-left:10px;font-size:12px;color:${laptopInfo.iconColor};font-weight:600;font-family:Arial,sans-serif;">
-                Laptop &amp; Hardware &mdash; ${laptopInfo.label}
-              </td>
-              <td align="right" style="white-space:nowrap;">
-                <table cellpadding="0" cellspacing="0" border="0" align="right">
-                  <tr>
-                    <td style="background-color:${laptopInfo.badgeBg};color:${laptopInfo.badgeText};
-                      border:1px solid ${laptopInfo.badgeBorder};border-radius:20px;
-                      padding:2px 10px;font-size:11px;font-weight:700;font-family:Arial,sans-serif;">
-                      RECORDED
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <!-- Laptop email sentence -->
-      <tr>
-        <td style="padding:6px 14px 10px;border-bottom:1px solid #f1f5f9;">
-          <table cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr>
-              <td style="background-color:${laptopInfo.iconBg};border:1px solid ${laptopInfo.badgeBorder};
-                border-radius:6px;padding:8px 12px;font-size:11px;color:${laptopInfo.iconColor};
-                font-family:Arial,sans-serif;line-height:1.6;">
-                &#128231; <strong>Asset note for email:</strong>&nbsp;
-                ${laptopInfo.emailText}
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>`
-    : `<tr>
-        <td style="padding:9px 14px;border-bottom:1px solid #f1f5f9;">
-          <table cellpadding="0" cellspacing="0" border="0" width="100%">
-            <tr valign="middle">
-              <td width="26" height="26" align="center" valign="middle"
-                style="width:26px;height:26px;background-color:#f3f4f6;
-                border-radius:4px;border:1px solid #d1d5db;
-                font-size:14px;font-family:Arial,sans-serif;">
-                &#9675;
-              </td>
-              <td style="padding-left:10px;font-size:12px;color:#6b7280;font-family:Arial,sans-serif;">
-                Laptop &amp; Hardware &mdash; <em>Status not recorded</em>
-              </td>
-              <td align="right">
-                <table cellpadding="0" cellspacing="0" border="0" align="right">
-                  <tr>
-                    <td style="background-color:#fef3c7;color:#92400e;border:1px solid #fcd34d;
-                      border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;
-                      font-family:Arial,sans-serif;">
-                      PENDING
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>`;
+    ? `<tr><td style="padding:9px 14px;border-bottom:1px solid #f1f5f9;font-family:Arial,sans-serif;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr valign="middle">
+          <td width="26" height="26" align="center" valign="middle"
+            style="width:26px;height:26px;background-color:${laptopInfo.iconBg};border-radius:4px;border:1px solid ${laptopInfo.badgeBorder};font-size:14px;font-family:Arial,sans-serif;">
+            ${laptopInfo.icon}</td>
+          <td style="padding-left:10px;font-size:12px;color:${laptopInfo.iconColor};font-weight:600;font-family:Arial,sans-serif;">
+            Laptop &amp; Hardware &mdash; ${laptopInfo.label}</td>
+          <td align="right" style="white-space:nowrap;">
+            <table cellpadding="0" cellspacing="0" border="0" align="right"><tr>
+              <td style="background-color:${laptopInfo.badgeBg};color:${laptopInfo.badgeText};border:1px solid ${laptopInfo.badgeBorder};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;font-family:Arial,sans-serif;">RECORDED</td>
+            </tr></table>
+          </td>
+        </tr></table>
+      </td></tr>
+      <tr><td style="padding:6px 14px 10px;border-bottom:1px solid #f1f5f9;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+          <td style="background-color:${laptopInfo.iconBg};border:1px solid ${laptopInfo.badgeBorder};border-radius:6px;padding:8px 12px;font-size:11px;color:${laptopInfo.iconColor};font-family:Arial,sans-serif;line-height:1.6;">
+            &#128231; <strong>Asset note for email:</strong>&nbsp;${laptopInfo.emailText}
+          </td>
+        </tr></table>
+      </td></tr>`
+    : `<tr><td style="padding:9px 14px;border-bottom:1px solid #f1f5f9;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr valign="middle">
+          <td width="26" height="26" align="center" valign="middle"
+            style="width:26px;height:26px;background-color:#f3f4f6;border-radius:4px;border:1px solid #d1d5db;font-size:14px;font-family:Arial,sans-serif;">&#9675;</td>
+          <td style="padding-left:10px;font-size:12px;color:#6b7280;font-family:Arial,sans-serif;">
+            Laptop &amp; Hardware &mdash; <em>Status not recorded</em></td>
+          <td align="right">
+            <table cellpadding="0" cellspacing="0" border="0" align="right"><tr>
+              <td style="background-color:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;font-family:Arial,sans-serif;">PENDING</td>
+            </tr></table>
+          </td>
+        </tr></table>
+      </td></tr>`;
 
-  // ── Checklist items ───────────────────────────────────────────────────────
   const checklistItems = [
     { key: 'email_deactivated', label: 'Email account &amp; portal access deactivated' },
-    { key: 'licenses_revoked',  label: 'Software licenses revoked and reassigned' },
-    { key: 'vpn_revoked',       label: 'VPN and remote access credentials revoked' },
-    { key: 'ad_removed',        label: 'Removed from Active Directory / Azure AD' },
+    { key: 'licenses_revoked', label: 'Software licenses revoked and reassigned' },
+    { key: 'vpn_revoked', label: 'VPN and remote access credentials revoked' },
+    { key: 'ad_removed', label: 'Removed from Active Directory / Azure AD' },
   ];
 
-  const renderChecklist = checklistItems.map(item => {
-    const done = checklist[item.key] === true || checklist[item.key] === 'true';
-    return `<tr>
-      <td style="padding:9px 14px;border-bottom:1px solid #f1f5f9;font-family:Arial,sans-serif;">
-        <table cellpadding="0" cellspacing="0" border="0" width="100%">
-          <tr valign="middle">
-            <td width="26" height="26" align="center" valign="middle"
-              style="width:26px;height:26px;
-              background-color:${done ? '#dcfce7' : '#f3f4f6'};
-              border-radius:4px;
-              border:1px solid ${done ? '#86efac' : '#d1d5db'};
-              font-size:14px;font-family:Arial,sans-serif;">
-              ${done ? '&#10003;' : '&#9675;'}
-            </td>
-            <td style="padding-left:10px;font-size:12px;
-              color:${done ? '#166534' : '#6b7280'};
-              font-weight:${done ? '600' : '400'};
-              font-family:Arial,sans-serif;">
-              ${item.label}
-            </td>
-            <td align="right" style="white-space:nowrap;">
-              <table cellpadding="0" cellspacing="0" border="0" align="right">
-                <tr>
-                  <td style="
-                    background-color:${done ? '#dcfce7' : '#fef3c7'};
-                    color:${done ? '#166534' : '#92400e'};
-                    border:1px solid ${done ? '#86efac' : '#fcd34d'};
-                    border-radius:20px;padding:2px 10px;
-                    font-size:11px;font-weight:700;font-family:Arial,sans-serif;">
-                    ${done ? 'DONE' : 'PENDING'}
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>`;
-  }).join('');
-
-  // ── Admin notes block ─────────────────────────────────────────────────────
-  const adminNotes = checklist.notes
-    ? `<table width="100%" cellpadding="0" cellspacing="0" border="0"
-        style="margin-top:16px;background-color:#fffbeb;border:1px solid #fcd34d;border-radius:8px;">
-        <tr>
-          <td style="padding:12px 16px;">
-            <div style="font-size:12px;font-weight:700;color:#92400e;font-family:Arial,sans-serif;margin-bottom:4px;">
-              &#128203; Admin Notes:
-            </div>
-            <div style="font-size:12px;color:#92400e;font-family:Arial,sans-serif;line-height:1.6;">
-              ${checklist.notes}
-            </div>
+  const renderChecklist = checklistItems
+    .map(item => {
+      const done = checklist[item.key] === true || checklist[item.key] === 'true';
+      return `<tr><td style="padding:9px 14px;border-bottom:1px solid #f1f5f9;font-family:Arial,sans-serif;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr valign="middle">
+          <td width="26" height="26" align="center" valign="middle"
+            style="width:26px;height:26px;background-color:${done ? '#dcfce7' : '#f3f4f6'};border-radius:4px;border:1px solid ${done ? '#86efac' : '#d1d5db'};font-size:14px;font-family:Arial,sans-serif;">
+            ${done ? '&#10003;' : '&#9675;'}</td>
+          <td style="padding-left:10px;font-size:12px;color:${done ? '#166534' : '#6b7280'};font-weight:${done ? '600' : '400'};font-family:Arial,sans-serif;">
+            ${item.label}</td>
+          <td align="right" style="white-space:nowrap;">
+            <table cellpadding="0" cellspacing="0" border="0" align="right"><tr>
+              <td style="background-color:${done ? '#dcfce7' : '#fef3c7'};color:${done ? '#166534' : '#92400e'};border:1px solid ${done ? '#86efac' : '#fcd34d'};border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;font-family:Arial,sans-serif;">
+                ${done ? 'DONE' : 'PENDING'}</td>
+            </tr></table>
           </td>
-        </tr>
+        </tr></table>
+      </td></tr>`;
+    })
+    .join('');
+
+  const adminNotes = checklist.notes
+    ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;background-color:#fffbeb;border:1px solid #fcd34d;border-radius:8px;">
+        <tr><td style="padding:12px 16px;">
+          <div style="font-size:12px;font-weight:700;color:#92400e;font-family:Arial,sans-serif;margin-bottom:4px;">&#128203; Admin Notes:</div>
+          <div style="font-size:12px;color:#92400e;font-family:Arial,sans-serif;line-height:1.6;">${checklist.notes}</div>
+        </td></tr>
       </table>`
     : '';
 
-  // ── Photo block for exit email ────────────────────────────────────────────
   const photoHtml = empPhotoBlock(photo_url, emp_name, 56);
 
   const html = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -841,40 +728,39 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Employee Exit Notification</title>
-<!--[if mso]>
-<style type="text/css">
-  table { border-collapse: collapse; }
-  .outlook-fix { width: 620px !important; }
-</style>
-<![endif]-->
+<!--[if mso]><style type="text/css">table{border-collapse:collapse;}.outlook-fix{width:620px !important;}</style><![endif]-->
 </head>
-<body style="margin:0;padding:0;background-color:#f0f2f5;font-family:Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f0f2f5">
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:Arial,sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f1f5f9">
 <tr><td align="center" style="padding:24px 16px;">
-
-  <table class="outlook-fix" width="620" cellpadding="0" cellspacing="0" border="0"
-    style="max-width:620px;width:100%;">
+  <table class="outlook-fix" width="620" cellpadding="0" cellspacing="0" border="0" style="max-width:620px;width:100%;" role="presentation">
 
     <!-- Logo bar -->
     <tr>
-      <td style="background-color:#ffffff;border-radius:12px 12px 0 0;border-bottom:3px solid #166534;padding:16px 24px;" align="center">
+      <td style="background-color:#ffffff;border-radius:12px 12px 0 0;border-bottom:3px solid #cbd5e1;padding:16px 24px;" align="center">
         ${logoAtts.length > 0
           ? `<img src="cid:mindteck_logo" alt="Mindteck" height="44" style="display:block;height:44px;border:0;">`
-          : `<div style="font-size:22px;font-weight:900;color:#1B5E3F;font-family:Arial,sans-serif;">Mindteck</div>`}
+          : `<table cellpadding="0" cellspacing="0" border="0" align="center" role="presentation"><tr valign="middle">
+              <td width="36" height="36" align="center" valign="middle"
+                style="width:36px;height:36px;background-color:#475569;border-radius:18px;font-size:17px;font-weight:900;color:#ffffff;font-family:Arial,sans-serif;">M</td>
+              <td style="padding-left:10px;" valign="middle">
+                <div style="font-size:20px;font-weight:900;color:#334155;font-family:Arial,sans-serif;">Mindteck</div>
+                <div style="font-size:9px;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Information Technology</div>
+              </td>
+            </tr></table>`}
       </td>
     </tr>
 
-    <!-- Hero banner -->
+    <!-- Hero banner without icon -->
     <tr>
-      <td style="background-color:#14532d;padding:32px 24px;" align="center">
-        <div style="font-size:52px;line-height:1;margin-bottom:12px;font-family:Arial,sans-serif;">&#128682;</div>
-        <div style="font-size:22px;font-weight:800;color:#ffffff;font-family:Arial,sans-serif;margin-bottom:6px;">
+      <td style="background-color:#475569;padding:34px 24px 30px;" align="center">
+        <div style="font-size:22px;font-weight:800;color:#ffffff;font-family:Arial,sans-serif;margin-bottom:8px;letter-spacing:-0.3px;">
           Employee Exit Notification
         </div>
-        <div style="font-size:13px;color:rgba(255,255,255,0.75);font-family:Arial,sans-serif;">
+        <div style="font-size:13px;color:rgba(255,255,255,0.80);font-family:Arial,sans-serif;margin-bottom:12px;">
           Automated notification from AssetOps &bull; ${deletedDate}
         </div>
+        <div style="width:72px;height:2px;background:#cbd5e1;margin:0 auto;border-radius:2px;"></div>
       </td>
     </tr>
 
@@ -883,111 +769,92 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
       <td style="background-color:#ffffff;padding:24px;border-radius:0 0 12px 12px;">
 
         <!-- Alert strip -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0"
-          style="margin-bottom:20px;background-color:#f0fdf4;border:1px solid #86efac;border-radius:8px;">
-          <tr>
-            <td style="padding:14px 16px;">
-              <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                <tr valign="middle">
-                  <td width="60" valign="middle" style="padding-right:14px;">${photoHtml}</td>
-                  <td style="font-size:13px;color:#166534;font-family:Arial,sans-serif;font-weight:600;" valign="middle">
-                    Employee <strong>${emp_name}</strong> (${emp_id}) has been removed from the system on
-                    <strong>${deletedDate}</strong> by ${deletedBy || 'IT Admin'}.
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;background-color:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;" role="presentation">
+          <tr><td style="padding:14px 16px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation"><tr valign="middle">
+              <td width="60" valign="middle" style="padding-right:14px;">${photoHtml}</td>
+              <td style="font-size:13px;color:#1e293b;font-family:Arial,sans-serif;font-weight:600;" valign="middle">
+                Employee <strong style="color:#334155;">${emp_name}</strong> (${emp_id}) has been removed from the system on
+                <strong style="color:#334155;">${deletedDate}</strong> by ${deletedBy || 'IT Admin'}.
+              </td>
+            </tr></table>
+          </td></tr>
         </table>
 
         <!-- Employee details -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0"
-          style="margin-bottom:20px;border:1px solid #d1fae5;border-radius:10px;">
-          <tr>
-            <td style="background-color:#166534;padding:11px 16px;border-radius:10px 10px 0 0;">
-              <span style="font-size:12px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;">
-                &#128100; EXITED EMPLOYEE DETAILS
-              </span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:14px;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td width="20%" style="font-size:12px;color:#6b7280;padding:5px 0;font-family:Arial,sans-serif;">Employee ID</td>
-                  <td width="30%" style="font-size:12px;font-weight:700;color:#166534;padding:5px 0;font-family:Arial,sans-serif;">${emp_id}</td>
-                  <td width="20%" style="font-size:12px;color:#6b7280;padding:5px 0;padding-left:20px;font-family:Arial,sans-serif;">Full Name</td>
-                  <td width="30%" style="font-size:12px;font-weight:700;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${emp_name}</td>
-                </tr>
-                <tr>
-                  <td style="font-size:12px;color:#6b7280;padding:5px 0;font-family:Arial,sans-serif;">Designation</td>
-                  <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${designation || 'N/A'}</td>
-                  <td style="font-size:12px;color:#6b7280;padding:5px 0;padding-left:20px;font-family:Arial,sans-serif;">Service Line</td>
-                  <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${service_line || 'N/A'}</td>
-                </tr>
-                <tr>
-                  <td style="font-size:12px;color:#6b7280;padding:5px 0;font-family:Arial,sans-serif;">Location</td>
-                  <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${location || 'N/A'}</td>
-                  <td style="font-size:12px;color:#6b7280;padding:5px 0;padding-left:20px;font-family:Arial,sans-serif;">Company Email</td>
-                  <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${company_email || 'N/A'}</td>
-                </tr>
-                <tr>
-                  <td style="font-size:12px;color:#6b7280;padding:5px 0;font-family:Arial,sans-serif;">Exit Date</td>
-                  <td style="font-size:12px;font-weight:700;color:#166534;padding:5px 0;font-family:Arial,sans-serif;">${deletedDate}</td>
-                  <td style="font-size:12px;color:#6b7280;padding:5px 0;padding-left:20px;font-family:Arial,sans-serif;">Processed By</td>
-                  <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${deletedBy || 'IT Admin'}</td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;border:1px solid #cbd5e1;border-radius:10px;" role="presentation">
+          <tr><td style="background-color:#475569;padding:11px 16px;border-radius:10px 10px 0 0;">
+            <span style="font-size:12px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;letter-spacing:0.5px;">
+              &#128100;&nbsp; EXITED EMPLOYEE DETAILS
+            </span>
+          </td></tr>
+          <tr><td style="padding:14px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+              <tr>
+                <td width="20%" style="font-size:12px;color:#64748b;padding:5px 0;font-family:Arial,sans-serif;">Employee ID</td>
+                <td width="30%" style="font-size:12px;font-weight:700;color:#475569;padding:5px 0;font-family:Arial,sans-serif;">${emp_id}</td>
+                <td width="20%" style="font-size:12px;color:#64748b;padding:5px 0;padding-left:20px;font-family:Arial,sans-serif;">Full Name</td>
+                <td width="30%" style="font-size:12px;font-weight:700;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${emp_name}</td>
+              </tr>
+              <tr>
+                <td style="font-size:12px;color:#64748b;padding:5px 0;font-family:Arial,sans-serif;">Designation</td>
+                <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${designation || 'N/A'}</td>
+                <td style="font-size:12px;color:#64748b;padding:5px 0;padding-left:20px;font-family:Arial,sans-serif;">Service Line</td>
+                <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${service_line || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td style="font-size:12px;color:#64748b;padding:5px 0;font-family:Arial,sans-serif;">Location</td>
+                <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${location || 'N/A'}</td>
+                <td style="font-size:12px;color:#64748b;padding:5px 0;padding-left:20px;font-family:Arial,sans-serif;">Company Email</td>
+                <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${company_email || 'N/A'}</td>
+              </tr>
+              <tr>
+                <td style="font-size:12px;color:#64748b;padding:5px 0;font-family:Arial,sans-serif;">Exit Date</td>
+                <td style="font-size:12px;font-weight:700;color:#475569;padding:5px 0;font-family:Arial,sans-serif;">${deletedDate}</td>
+                <td style="font-size:12px;color:#64748b;padding:5px 0;padding-left:20px;font-family:Arial,sans-serif;">Processed By</td>
+                <td style="font-size:12px;font-weight:600;color:#0f172a;padding:5px 0;font-family:Arial,sans-serif;">${deletedBy || 'IT Admin'}</td>
+              </tr>
+            </table>
+          </td></tr>
         </table>
 
-        <!-- Exit Checklist (IT Access items) -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0"
-          style="margin-bottom:20px;border:1px solid #d1fae5;border-radius:10px;">
-          <tr>
-            <td style="background-color:#166534;padding:11px 16px;border-radius:10px 10px 0 0;">
-              <span style="font-size:12px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;">
-                &#128203; EXIT CHECKLIST — IT ACCESS
-              </span>
-            </td>
-          </tr>
+        <!-- Exit Checklist -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;border:1px solid #cbd5e1;border-radius:10px;" role="presentation">
+          <tr><td style="background-color:#475569;padding:11px 16px;border-radius:10px 10px 0 0;">
+            <span style="font-size:12px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;letter-spacing:0.5px;">
+              &#128203;&nbsp; EXIT CHECKLIST &mdash; IT ACCESS
+            </span>
+          </td></tr>
           ${renderChecklist}
         </table>
 
         <!-- Laptop / Asset Status -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0"
-          style="margin-bottom:20px;border:1px solid #fed7aa;border-radius:10px;">
-          <tr>
-            <td style="background-color:#c2410c;padding:11px 16px;border-radius:10px 10px 0 0;">
-              <span style="font-size:12px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;">
-                &#128187; ASSET RECOVERY — LAPTOP STATUS
-              </span>
-            </td>
-          </tr>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;border:1px solid #e2e8f0;border-radius:10px;" role="presentation">
+          <tr><td style="background-color:#64748b;padding:11px 16px;border-radius:10px 10px 0 0;">
+            <span style="font-size:12px;font-weight:700;color:#ffffff;font-family:Arial,sans-serif;letter-spacing:0.5px;">
+              &#128187;&nbsp; ASSET RECOVERY &mdash; LAPTOP STATUS
+            </span>
+          </td></tr>
           ${laptopStatusRow}
         </table>
 
         ${adminNotes}
 
         <!-- Footer note -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0"
-          style="margin-top:16px;background-color:#f0fdf4;border:1px solid #d1fae5;border-radius:8px;">
-          <tr>
-            <td style="padding:12px 16px;font-size:12px;color:#374151;font-family:Arial,sans-serif;">
-              This notification was generated automatically by <strong>AssetOps</strong>.
-              For questions: <a href="mailto:sysadmin@mindteck.us" style="color:#166534;text-decoration:none;">sysadmin@mindteck.us</a>
-            </td>
-          </tr>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;background-color:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;" role="presentation">
+          <tr><td style="padding:12px 16px;font-size:12px;color:#1e293b;font-family:Arial,sans-serif;">
+            This notification was generated automatically by <strong style="color:#334155;">AssetOps</strong>.
+            For questions: <a href="mailto:sysadmin@mindteck.us" style="color:#475569;font-weight:600;text-decoration:none;">sysadmin@mindteck.us</a>
+          </td></tr>
         </table>
 
       </td>
     </tr>
 
-    <!-- Footer -->
+    <!-- Footer bar -->
     <tr>
-      <td style="background-color:#14532d;padding:12px 20px;border-radius:0 0 12px 12px;" align="center">
-        <div style="font-size:11px;color:rgba(255,255,255,0.75);font-family:Arial,sans-serif;">
+      <td style="background-color:#334155;padding:12px 20px;border-radius:0 0 12px 12px;" align="center">
+        <div style="font-size:11px;color:rgba(255,255,255,0.75);font-family:Arial,sans-serif;line-height:1.8;">
           &copy; ${new Date().getFullYear()} Mindteck IT Team &bull; AssetOps System &mdash; Internal Use Only
         </div>
       </td>
@@ -1000,13 +867,15 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
 </html>`;
 
   const mailOptions = {
-    from:    FROM,
-    to:      toList.join(', '),
+    from: FROM,
+    to: toList.join(', '),
     subject: `EXIT Notification: ${emp_name} (${emp_id}) — ${deletedDate}`,
     html,
     attachments: [...logoAtts, ...photoAtts],
   };
+
   if (ccList.length > 0) mailOptions.cc = ccList.join(', ');
+
   await transporter.sendMail(mailOptions);
   console.log(`✅ Exit notification sent for ${emp_name} to ${toList.join(', ')}`);
 };
@@ -1124,9 +993,7 @@ exports.createEmployee = asyncHandler(async (req, res) => {
 
   if (company_email || personal_email) {
     const empData = { ...req.body, doj: doj || null };
-    sendWelcomeEmail(empData).catch(err =>
-      console.error('Welcome email failed:', err.message)
-    );
+    sendWelcomeEmail(empData).catch(err => console.error('Welcome email failed:', err.message));
   }
 
   res.status(201).json({ success: true, data: newEmp });
@@ -1191,17 +1058,10 @@ exports.deleteEmployee = asyncHandler(async (req, res) => {
     empData.cc_emails = checklist.cc_emails_override;
   } else {
     const storedCc = (empData.cc_emails || '').split(',').map(e => e.trim()).filter(Boolean);
-    const safeCC   = storedCc.filter(e =>
-      e !== empData.company_email &&
-      e !== empData.personal_email
-    );
-    empData.cc_emails = safeCC.join(', ');
+    empData.cc_emails = storedCc.filter(e => e !== empData.company_email && e !== empData.personal_email).join(', ');
   }
 
-  sendExitEmail(empData, deletedBy, checklist).catch(err =>
-    console.error('Exit email failed:', err.message)
-  );
-
+  sendExitEmail(empData, deletedBy, checklist).catch(err => console.error('Exit email failed:', err.message));
   res.json({ success: true, message: `${empId} deleted` });
 });
 
@@ -1212,16 +1072,14 @@ exports.deleteEmployee = asyncHandler(async (req, res) => {
 
 exports.getSupportContactsList = asyncHandler(async (req, res) => {
   const result = await query(
-    `SELECT id, name, phone, email, role, sort_order, is_active
-     FROM support_contacts WHERE is_active = TRUE ORDER BY sort_order ASC, id ASC`
+    `SELECT id, name, phone, email, role, sort_order, is_active FROM support_contacts WHERE is_active = TRUE ORDER BY sort_order ASC, id ASC`
   );
   res.json({ success: true, data: result.rows });
 });
 
 exports.getAllSupportContacts = asyncHandler(async (req, res) => {
   const result = await query(
-    `SELECT id, name, phone, email, role, sort_order, is_active
-     FROM support_contacts ORDER BY sort_order ASC, id ASC`
+    `SELECT id, name, phone, email, role, sort_order, is_active FROM support_contacts ORDER BY sort_order ASC, id ASC`
   );
   res.json({ success: true, data: result.rows });
 });
@@ -1230,8 +1088,7 @@ exports.createSupportContact = asyncHandler(async (req, res) => {
   const { name, phone, email, role, sort_order } = req.body;
   if (!name) return res.status(400).json({ success: false, message: 'Name is required' });
   const result = await query(
-    `INSERT INTO support_contacts (name, phone, email, role, sort_order)
-     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    `INSERT INTO support_contacts (name, phone, email, role, sort_order) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
     [name, phone || null, email || null, role || 'IT Support', sort_order || 0]
   );
   await audit('SUPPORT_CONTACT_ADDED', `Support contact ${name} added`, req.user?.name || 'Admin');
@@ -1242,8 +1099,7 @@ exports.updateSupportContact = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { name, phone, email, role, sort_order, is_active } = req.body;
   const result = await query(
-    `UPDATE support_contacts SET name=$1, phone=$2, email=$3, role=$4, sort_order=$5, is_active=$6
-     WHERE id=$7 RETURNING *`,
+    `UPDATE support_contacts SET name=$1, phone=$2, email=$3, role=$4, sort_order=$5, is_active=$6 WHERE id=$7 RETURNING *`,
     [name, phone || null, email || null, role || 'IT Support', sort_order || 0, is_active !== false, id]
   );
   if (!result.rows.length) return res.status(404).json({ success: false, message: 'Contact not found' });

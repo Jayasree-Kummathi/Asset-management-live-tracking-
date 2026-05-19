@@ -55,6 +55,14 @@ const validateEmail = (email) => {
 };
 
 const sendMail = async (options) => {
+
+  console.log('MAIL_HOST:', process.env.MAIL_HOST);
+  console.log('MAIL_USER:', process.env.MAIL_USER);
+  console.log('MAIL_PASS:', process.env.MAIL_PASS ? 'SET' : 'NOT SET');
+  console.log('MAIL_PASS length:', process.env.MAIL_PASS.length);
+console.log('MAIL_PASS raw:', JSON.stringify(process.env.MAIL_PASS));
+
+
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
     console.log('📧 [Skipped — MAIL_USER/PASS not configured]');
     console.log('   To:', options.to, '| CC:', options.cc);
