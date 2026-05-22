@@ -917,3 +917,221 @@ exports.sendAcceptanceReminderEmail = async (p) => {
     attachments: getLogoAttachment(),
   });
 };
+
+
+exports.sendAuditEmail = async ({
+  empName, empEmail, empId, department,
+  assetId, brand, model, config, serial, processor, ram, storage,
+  accessories, project, client, allocationDate,
+  sentBy, sentByEmail, confirmLink, itEmail,
+}) => {
+  validateEmail(empEmail);
+
+  const formattedDate = allocationDate
+    ? new Date(allocationDate).toLocaleDateString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric',
+      })
+    : '—';
+
+  const accList = Array.isArray(accessories) && accessories.length
+    ? accessories.map(a => `<li style="margin:3px 0;color:#444;">${a}</li>`).join('')
+    : '<li style="color:#999;font-style:italic;">None recorded</li>';
+
+  const row = (label, value, mono = false) => `
+    <tr style="border-bottom:1px solid #edf2ff;">
+      <td style="padding:9px 18px;font-size:11.5px;font-weight:600;color:#888;
+                 text-transform:uppercase;letter-spacing:.05em;width:38%;
+                 white-space:nowrap;">${label}</td>
+      <td style="padding:9px 18px;font-size:13px;
+                 ${mono
+                   ? "font-family:'Courier New',monospace;font-weight:700;color:#1a56db;"
+                   : 'color:#222;font-weight:500;'
+                 }">${value || '—'}</td>
+    </tr>`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Asset Audit Confirmation</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f9;font-family:'Segoe UI',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f9;padding:36px 0;">
+  <tr>
+    <td align="center">
+      <table width="620" cellpadding="0" cellspacing="0"
+             style="background:#ffffff;border-radius:14px;overflow:hidden;
+                    box-shadow:0 4px 20px rgba(0,0,0,.09);">
+
+        <!-- Header -->
+        <tr>
+          <td bgcolor="#1a56db" style="background:linear-gradient(135deg,#1a56db 0%,#4f8ef7 100%);padding:30px 36px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td>
+                  <div style="font-size:10.5px;font-weight:700;color:rgba(255,255,255,.65);
+                              text-transform:uppercase;letter-spacing:2.5px;margin-bottom:8px;">
+                    IT Asset Management &middot; Periodic Audit
+                  </div>
+                  <div style="font-size:22px;font-weight:800;color:#ffffff;line-height:1.2;">
+                    Please confirm your asset
+                  </div>
+                  <div style="font-size:13px;color:rgba(255,255,255,.8);margin-top:6px;">
+                    Asset ID: <strong style="color:#fff;">${assetId}</strong>
+                  </div>
+                </td>
+                <td align="right" valign="top">
+                  <div style="background:rgba(255,255,255,.18);border-radius:10px;
+                              padding:9px 16px;font-size:22px;">&#128203;</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Logo bar -->
+        <tr>
+          <td style="padding:14px 36px;border-bottom:1px solid #eef2f7;background:#fff;">
+            <img src="cid:${LOGO_CID}" alt="Logo" height="32" style="height:32px;width:auto;display:block"/>
+          </td>
+        </tr>
+
+        <!-- Greeting -->
+        <tr>
+          <td style="padding:28px 36px 0;">
+            <p style="margin:0 0 10px;font-size:15.5px;color:#1a1a2e;font-weight:700;">
+              Hi ${empName},
+            </p>
+            <p style="margin:0;font-size:14px;color:#555;line-height:1.7;">
+              As part of our routine asset audit, we need you to confirm that the laptop
+              and accessories listed below are currently <strong>in your possession</strong>
+              and in <strong>good working condition</strong>.
+            </p>
+            <p style="margin:14px 0 0;font-size:13.5px;color:#444;line-height:1.65;">
+              &#9989; &nbsp;<strong>Everything is fine?</strong> Click the confirmation button below.<br/>
+              &#9888;&#65039; &nbsp;<strong>Issue or discrepancy?</strong> Reply directly to this email &mdash; our IT team will follow up.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Asset Details -->
+        <tr>
+          <td style="padding:22px 36px 0;">
+            <div style="border:1px solid #dde8ff;border-radius:10px;overflow:hidden;">
+              <div style="background:#e8f0fe;padding:11px 18px;
+                          font-size:10.5px;font-weight:700;color:#1a56db;
+                          text-transform:uppercase;letter-spacing:1.5px;">
+                &#128187; &nbsp;Allocated Asset Details
+              </div>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faff;">
+                ${row('Asset ID',        assetId,                     true)}
+                ${row('Brand / Model',   `${brand || ''} ${model || ''}`)}
+                ${row('Serial Number',   serial,                      true)}
+                ${row('Configuration',   config)}
+                ${row('Processor',       processor)}
+                ${row('RAM',             ram)}
+                ${row('Storage',         storage)}
+                ${row('Allocation Date', formattedDate)}
+                ${row('Project',         project)}
+                ${row('Client',          client)}
+                ${row('Department',      department)}
+              </table>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Accessories -->
+        <tr>
+          <td style="padding:16px 36px 0;">
+            <div style="border:1px solid #dde8ff;border-radius:10px;overflow:hidden;">
+              <div style="background:#e8f0fe;padding:11px 18px;
+                          font-size:10.5px;font-weight:700;color:#1a56db;
+                          text-transform:uppercase;letter-spacing:1.5px;">
+                &#128230; &nbsp;Accessories
+              </div>
+              <div style="background:#f8faff;padding:4px 0;">
+                <ul style="margin:8px 18px 12px 36px;padding:0;font-size:13px;line-height:1.8;">
+                  ${accList}
+                </ul>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <!-- CTA Button -->
+        <tr>
+          <td style="padding:30px 36px 0;text-align:center;">
+            ${confirmLink
+              ? `<a href="${confirmLink}"
+                   style="display:inline-block;background:#16a34a;color:#ffffff;
+                          font-size:15px;font-weight:700;padding:15px 44px;
+                          text-decoration:none;letter-spacing:0.3px;">
+                   &#10003; &nbsp; Yes &mdash; Asset is with me &amp; in good condition
+                 </a>
+                 <p style="margin:12px 0 0;font-size:12px;color:#aaa;">
+                   Clicking this button confirms you have the device and it is working fine.
+                 </p>`
+              : `<div style="background:#f0f0f0;padding:16px;font-size:13px;color:#666;">
+                   No confirmation link available &mdash; please reply to this email.
+                 </div>`
+            }
+          </td>
+        </tr>
+
+        <!-- Warning Notice -->
+        <tr>
+          <td style="padding:22px 36px 0;">
+            <div style="background:#fffbea;border-left:4px solid #f59e0b;padding:14px 18px;">
+              <p style="margin:0;font-size:12.5px;color:#92400e;line-height:1.65;">
+                &#9888;&#65039; <strong>Important:</strong> If the asset is no longer with you,
+                has been damaged, lost, or transferred to someone else, please
+                <strong>reply to this email immediately</strong> so our IT team
+                can update the records accordingly.
+              </p>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Divider -->
+        <tr><td style="padding:24px 36px 0;"><hr style="border:none;border-top:1px solid #eef2f7;margin:0;"/></td></tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:18px 36px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+            <p style="margin:0 0 4px;font-size:12.5px;color:#777;">
+              Sent by &nbsp;<strong style="color:#333;">${sentBy}</strong>
+              ${sentByEmail
+                ? ` &nbsp;&middot;&nbsp; <a href="mailto:${sentByEmail}"
+                      style="color:#1a56db;text-decoration:none;">${sentByEmail}</a>`
+                : ''
+              }
+            </p>
+            <p style="margin:4px 0 0;font-size:11.5px;color:#bbb;">
+              Automated periodic audit email &mdash; Mindteck IT Asset Management System.<br/>
+              Employee: <strong>${empId}</strong>
+              ${department ? ` &nbsp;&middot;&nbsp; Dept: <strong>${department}</strong>` : ''}
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+
+  // ── Use the shared sendMail() wrapper (same as all other functions) ──────────
+  await sendMail({
+    to:          empEmail,
+    replyTo:     itEmail || sysEmail() || process.env.MAIL_USER,
+    subject:     `[AssetOps] Asset Audit — Please confirm your laptop | ${assetId}`,
+    html,
+    attachments: getLogoAttachment(),  // includes the Mindteck logo cid
+  });
+
+  console.log(`📧 Audit email sent → ${empEmail} for asset ${assetId}`);
+};

@@ -1,8 +1,6 @@
 'use strict';
-// Backend/controllers/allocationController.js — FIXED
-// Fixes: 1) prepared_by showing in email & allocation list
-//        2) damage photos sent as embedded images in email
-//        3) receive endpoint now accepts & emails return photos
+// Backend/controllers/allocationController.js
+// Includes: allocate, receive, swap, getMyAllocation + sendAuditEmail (audit)
 
 const { query, getClient } = require('../config/db');
 
@@ -11,7 +9,7 @@ const localDate = (d = new Date()) =>
 
 const asyncHandler      = require('../utils/asyncHandler');
 const generateId        = require('../utils/generateId');
-const { sendAllocationEmail, sendReceiveEmail, sendSwapEmail } = require('../utils/emailService');
+const { sendAllocationEmail, sendReceiveEmail, sendSwapEmail, sendAuditEmail } = require('../utils/emailService');
 const { generateToken } = require('./acceptanceController');
 const { generateQRBuffer } = require('../utils/generateQR');
 
@@ -59,6 +57,13 @@ const parsePhotoArray = (raw) => {
   if (Array.isArray(raw)) return raw.filter(Boolean);
   try { return JSON.parse(raw) || []; } catch (_) { return []; }
 };
+
+// ── Helper: build HTML table row for audit email ──────────────────────────────
+const emailRow = (label, value, mono = false) => `
+  <tr style="border-bottom:1px solid #edf2ff;">
+    <td style="padding:9px 18px;font-size:11.5px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.05em;width:38%;">${label}</td>
+    <td style="padding:9px 18px;font-size:13px;${mono ? 'font-family:monospace;font-weight:700;color:#1a56db;' : 'color:#222;font-weight:500;'}">${value || '—'}</td>
+  </tr>`;
 
 // @route GET /api/allocations
 exports.getAllocations = asyncHandler(async (req, res) => {
@@ -128,8 +133,6 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
     }
 
     const allocationId = await generateId('ALO');
-
-    // ── FIX: ensure prepared_by is stored correctly ──
     const staffName = prepared_by || req.user?.name || 'IT Staff';
 
     const allocResult = await client_pg.query(
@@ -148,7 +151,7 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
         accessories || [],
         mobile_no || null, personal_email || null, photo_url || null,
         delivery_method || 'hand', delivery_address || null,
-        staffName,               // ← FIX: uses resolved staffName
+        staffName,
         damage_photos || '[]',
       ]
     );
@@ -192,13 +195,11 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
 
     const allocationDbId = allocResult.rows[0].id;
 
-    // ── Acceptance token ──────────────────────────────────────────────────────
     let acceptanceLink = '';
     try {
       acceptanceLink = await generateToken(allocationDbId, asset_id.toUpperCase(), emp_name, emp_email || '');
     } catch (e) { console.error('Token gen failed:', e.message); }
 
-    // ── QR code ───────────────────────────────────────────────────────────────
     const baseUrl = process.env.SERVER_URL || 'http://localhost:5000';
     const cardUrl = `${baseUrl}/card/${allocationId}`;
     let qrBuffer  = null;
@@ -207,17 +208,13 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
       console.log(`📱 QR generated for ${allocationId} → ${cardUrl}`);
     } catch (e) { console.error('QR gen failed:', e.message); }
 
-    // ── Asset info for email ──────────────────────────────────────────────────
     const assetInfoRes = await query(
       'SELECT brand, model, config, serial FROM assets WHERE asset_id = $1',
       [asset_id.toUpperCase()]
     );
     const assetInfo = assetInfoRes.rows[0] || {};
-
-    // ── FIX: parse damage photos correctly ───────────────────────────────────
     const damagePhotosArray = parsePhotoArray(damage_photos);
 
-    // ── Send allocation email (non-blocking) ──────────────────────────────────
     sendAllocationEmail({
       empName: emp_name, empEmail: emp_email, empId: emp_id,
       department: department || '', mobileNo: mobile_no || '',
@@ -236,9 +233,9 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
       qrCodeBuffer: qrBuffer,
       qrCardUrl: cardUrl,
       allocationId,
-      preparedBy: staffName,           // ← FIX: always set
+      preparedBy: staffName,
       damagePhotos: damage_photos || '[]',
-      damagePhotosArray,               // ← FIX: actual array for inline embeds
+      damagePhotosArray,
     });
 
     res.status(201).json({ success: true, data: allocResult.rows[0] });
@@ -252,7 +249,6 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
 
 // @route PUT /api/allocations/:id/receive
 exports.receiveLaptop = asyncHandler(async (req, res) => {
-  // ── FIX: now accepts return_photos from body ──────────────────────────────
   const { condition, damage_description, extra_ccs, return_photos } = req.body;
 
   const client_pg = await getClient();
@@ -273,8 +269,8 @@ exports.receiveLaptop = asyncHandler(async (req, res) => {
       return res.status(400).json({ success: false, message: 'Allocation is not active' });
     }
 
-    const statusMap    = { good: 'Stock', repair: 'Repair', scrap: 'Scrap' };
-    const newStatus    = statusMap[condition] || 'Stock';
+    const statusMap = { good: 'Stock', repair: 'Repair', scrap: 'Scrap' };
+    const newStatus = statusMap[condition] || 'Stock';
 
     const updatedAlloc = await client_pg.query(
       `UPDATE allocations
@@ -314,7 +310,6 @@ exports.receiveLaptop = asyncHandler(async (req, res) => {
     );
     await client_pg.query('COMMIT');
 
-    // ── Send receive email with return photos ────────────────────────────────
     if (alloc.emp_email) {
       const ae = (await query(
         'SELECT brand, model, serial FROM assets WHERE asset_id = $1',
@@ -326,8 +321,6 @@ exports.receiveLaptop = asyncHandler(async (req, res) => {
         repair: 'Needs Repair',
         scrap:  'Damaged / Unrepairable',
       };
-
-      // ── FIX: parse return photos and pass as array ──
       const returnPhotosArray = parsePhotoArray(return_photos);
 
       sendReceiveEmail({
@@ -347,7 +340,7 @@ exports.receiveLaptop = asyncHandler(async (req, res) => {
         receivedBy:        req.user?.name  || 'IT Staff',
         receivedByEmail:   req.user?.email || '',
         extraCCs:          extra_ccs || [],
-        damagePhotos:      returnPhotosArray,   // ← FIX: array goes to emailService
+        damagePhotos:      returnPhotosArray,
       });
     }
 
@@ -447,13 +440,11 @@ exports.swapLaptop = asyncHandler(async (req, res) => {
 
     await client_pg.query('COMMIT');
 
-    // ── QR for new allocation ─────────────────────────────────────────────────
     const baseUrl = process.env.SERVER_URL || 'http://localhost:5000';
     const cardUrl = `${baseUrl}/card/${newAllocId}`;
     let qrBuffer  = null;
     try { qrBuffer = await generateQRBuffer(cardUrl); } catch (_) {}
 
-    // ── FIX: parse issue images correctly ────────────────────────────────────
     const issuePhotosArray = parsePhotoArray(issue_images);
 
     if (alloc.emp_email) {
@@ -488,8 +479,8 @@ exports.swapLaptop = asyncHandler(async (req, res) => {
         qrCodeBuffer:     qrBuffer,
         qrCardUrl:        cardUrl,
         newAllocationId:  newAllocId,
-        preparedBy:       staffName,       // ← FIX
-        issueImages:      issuePhotosArray, // ← FIX: array for inline embeds
+        preparedBy:       staffName,
+        issueImages:      issuePhotosArray,
       });
     }
 
@@ -500,6 +491,73 @@ exports.swapLaptop = asyncHandler(async (req, res) => {
   } finally {
     client_pg.release();
   }
+});
+
+// @route POST /api/allocations/:id/send-audit-email
+// :id accepts either the integer PK (e.g. 42) or the allocation_id string (e.g. ALO-045)
+exports.sendAuditEmail = asyncHandler(async (req, res) => {
+  const param = req.params.id;
+  const isInt = /^\d+$/.test(param);
+  const alloc = (await query(
+    `SELECT a.*, ast.brand, ast.model, ast.config, ast.serial,
+            ast.processor, ast.ram, ast.storage
+     FROM allocations a
+     LEFT JOIN assets ast ON ast.asset_id = a.asset_id
+     WHERE ${isInt ? 'a.id = $1' : 'a.allocation_id = $1'}`,
+    [param]
+  )).rows[0];
+
+  if (!alloc)
+    return res.status(404).json({ success: false, message: 'Allocation not found' });
+
+  if (alloc.status !== 'Active')
+    return res.status(400).json({ success: false, message: 'Only active allocations can be audited' });
+
+  if (!alloc.emp_email)
+    return res.status(400).json({ success: false, message: 'Employee email not on record' });
+
+  // Generate a fresh confirmation token (reuses acceptance link)
+  let confirmLink = '';
+  try {
+    confirmLink = await generateToken(alloc.id, alloc.asset_id, alloc.emp_name, alloc.emp_email);
+  } catch (e) { console.error('Audit token gen failed:', e.message); }
+
+  // Log the audit send action
+  await query(
+    `INSERT INTO audit_logs (action, category, detail, asset_id, performed_by)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [
+      'AUDIT_EMAIL_SENT', 'audit',
+      `Audit confirmation email sent to ${alloc.emp_name} (${alloc.emp_email}) for ${alloc.asset_id}`,
+      alloc.asset_id,
+      req.user?.name || 'IT Staff',
+    ]
+  );
+
+  await sendAuditEmail({
+    empName:        alloc.emp_name,
+    empEmail:       alloc.emp_email,
+    empId:          alloc.emp_id,
+    department:     alloc.department     || '',
+    assetId:        alloc.asset_id,
+    brand:          alloc.brand          || '',
+    model:          alloc.model          || '',
+    config:         alloc.config         || '',
+    serial:         alloc.serial         || '',
+    processor:      alloc.processor      || '',
+    ram:            alloc.ram            || '',
+    storage:        alloc.storage        || '',
+    accessories:    alloc.accessories    || [],
+    project:        alloc.project        || '',
+    client:         alloc.client         || '',
+    allocationDate: alloc.allocation_date,
+    sentBy:         req.user?.name       || 'IT Staff',
+    sentByEmail:    req.user?.email      || '',
+    confirmLink,
+    itEmail:        process.env.IT_EMAIL || req.user?.email || '',
+  });
+
+  res.json({ success: true, message: `Audit email sent to ${alloc.emp_email}` });
 });
 
 // @route GET /api/allocations/my

@@ -24,11 +24,12 @@ const bootstrapColumn = async () => {
     const existingCols = await query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'employees'`);
     const columnNames  = existingCols.rows.map(c => c.column_name);
     const toAdd = [
-      ['company_email_password', 'VARCHAR(200)'],
-      ['deleted_at',             'TIMESTAMPTZ DEFAULT NULL'],
-      ['cc_emails',              "TEXT DEFAULT ''"],
-      ['portal_url',             'VARCHAR(500) DEFAULT NULL'],
-    ];
+  ['company_email_password', 'VARCHAR(200)'],
+  ['deleted_at',             'TIMESTAMPTZ DEFAULT NULL'],
+  ['cc_emails',              "TEXT DEFAULT ''"],
+  ['portal_url',             'VARCHAR(500) DEFAULT NULL'],
+  ['exit_checklist',         'JSONB DEFAULT NULL'],
+];
     for (const [col, def] of toAdd) {
       if (!columnNames.includes(col)) {
         await query(`ALTER TABLE employees ADD COLUMN ${col} ${def};`);
@@ -149,7 +150,7 @@ const LAPTOP_STATUS_MAP = {
   pending: {
     label: 'Pending Verification', icon: '&#8987;',
     iconBg: '#fef3c7', iconColor: '#92400e', badgeBg: '#fef3c7', badgeText: '#92400e', badgeBorder: '#fcd34d',
-    emailText: 'Laptop ownership and return status are pending verification. Please confirm with the client or reporting manager.',
+    emailText: 'The laptop has not been received yet, and the asset status remains pending verification. Please coordinate with the client, reporting manager, or relevant team to confirm the handover/return status.',
   },
 };
 
@@ -844,7 +845,7 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;background-color:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;" role="presentation">
           <tr><td style="padding:12px 16px;font-size:12px;color:#1e293b;font-family:Arial,sans-serif;">
             This notification was generated automatically by <strong style="color:#334155;">AssetOps</strong>.
-            For questions: <a href="mailto:sysadmin@mindteck.us" style="color:#475569;font-weight:600;text-decoration:none;">sysadmin@mindteck.us</a>
+            For questions: <a href="mailto:sysadmin@mindteck.com" style="color:#475569;font-weight:600;text-decoration:none;">sysadmin@mindteck.com</a>
           </td></tr>
         </table>
 
@@ -923,7 +924,9 @@ exports.getDeletedEmployees = asyncHandler(async (req, res) => {
        blood_group, cc_emails, portal_url, doj, dob, notes, photo_url,
        TO_CHAR(doj,'YYYY-MM-DD') AS doj_fmt,
        TO_CHAR(dob,'YYYY-MM-DD') AS dob_fmt,
-       TO_CHAR(deleted_at,'YYYY-MM-DD HH24:MI') AS deleted_at_fmt, status
+       TO_CHAR(deleted_at,'YYYY-MM-DD HH24:MI') AS deleted_at_fmt, status,
+       exit_checklist,
+       exit_checklist->>'laptop_status' AS laptop_status
      FROM employees WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
   );
   res.json({ success: true, data: result.rows });
@@ -1050,7 +1053,10 @@ exports.deleteEmployee = asyncHandler(async (req, res) => {
   const empData   = { emp_id: empId, ...empRes.rows[0] };
   const deletedBy = req.user?.name || 'IT Admin';
 
-  await query(`UPDATE employees SET deleted_at = NOW(), status = 'Inactive' WHERE emp_id = $1`, [empId]);
+  await query(
+  `UPDATE employees SET deleted_at = NOW(), status = 'Inactive', exit_checklist = $2 WHERE emp_id = $1`,
+  [empId, JSON.stringify(checklist)]
+);
   await query(`DELETE FROM license_assignments WHERE emp_id = $1`, [empId]).catch(() => {});
   await audit('EMPLOYEE_DELETED', `Employee ${empId} (${empData.emp_name}) deleted`, deletedBy);
 
@@ -1112,4 +1118,29 @@ exports.deleteSupportContact = asyncHandler(async (req, res) => {
   await query(`DELETE FROM support_contacts WHERE id=$1`, [id]);
   await audit('SUPPORT_CONTACT_DELETED', `Support contact ${id} deleted`, req.user?.name || 'Admin');
   res.json({ success: true, message: 'Contact deleted' });
+});
+
+exports.updateDeletedLaptopStatus = asyncHandler(async (req, res) => {
+  const { laptop_status } = req.body;
+  if (!laptop_status) 
+    return res.status(400).json({ success: false, message: 'laptop_status is required' });
+
+  const result = await query(
+    `UPDATE employees
+     SET exit_checklist = COALESCE(exit_checklist, '{}'::jsonb) || $1::jsonb
+     WHERE emp_id = $2 AND deleted_at IS NOT NULL
+     RETURNING emp_id, exit_checklist->>'laptop_status' AS laptop_status`,
+    [JSON.stringify({ laptop_status }), req.params.id]
+  );
+
+  if (!result.rows.length)
+    return res.status(404).json({ success: false, message: 'Deleted employee not found' });
+
+  await audit(
+    'LAPTOP_STATUS_UPDATED',
+    `Laptop status for ${req.params.id} updated to ${laptop_status}`,
+    req.user?.name || 'Admin'
+  );
+
+  res.json({ success: true, data: result.rows[0] });
 });

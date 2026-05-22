@@ -12,8 +12,8 @@ router.route('/')
   .get(ctrl.getEmployees)
   .post(authorize('admin', 'it_staff'), ctrl.createEmployee);
 
-// Deleted list — admin/it_staff only
 router.get('/deleted', authorize('admin', 'it_staff'), ctrl.getDeletedEmployees);
+router.patch('/deleted/:id/laptop-status', authorize('admin', 'it_staff'), ctrl.updateDeletedLaptopStatus);
 
 router.route('/:id')
   .get(ctrl.getEmployee)

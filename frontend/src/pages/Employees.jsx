@@ -848,7 +848,7 @@ function ExitChecklistPage({ emp, onCancel, onConfirm, deleting }) {
     { value:'collected',     label:'Laptop Collected (Company Asset)',                   icon:'✅', color:'#166534', bg:'#dcfce7', border:'#86efac', emailText:'The company-issued laptop has been successfully collected from the employee.' },
     { value:'client_return', label:'Client-Owned Laptop – To Be Returned to Client',    icon:'🏢', color:'#1e40af', bg:'#dbeafe', border:'#93c5fd', emailText:'The employee was using a client-owned laptop. Please confirm that the asset has been returned to the respective client.' },
     { value:'no_laptop',     label:'No Laptop Assigned',                                icon:'❌', color:'#6b7280', bg:'#f3f4f6', border:'#d1d5db', emailText:'No laptop or company asset was assigned to this employee.' },
-    { value:'pending',       label:'Pending Verification (Check with Client/Manager)',  icon:'⏳', color:'#92400e', bg:'#fef3c7', border:'#fcd34d', emailText:'Laptop ownership and return status are pending verification. Please confirm with the client or reporting manager.' },
+    { value:'pending',       label:'Pending Verification (Check with Client/Manager)',  icon:'⏳', color:'#92400e', bg:'#fef3c7', border:'#fcd34d', emailText:'The laptop has not been received yet, and the asset status remains pending verification. Please coordinate with the client, reporting manager, or relevant team to confirm the handover/return status.' },
   ];
   const CHECKLIST_ITEMS = [
     { key:'email_deactivated', label:'Deactivate Email & Portal Access',        detail:'Disable company email and revoke all portal / SSO logins',            icon:'📧', category:'IT' },
