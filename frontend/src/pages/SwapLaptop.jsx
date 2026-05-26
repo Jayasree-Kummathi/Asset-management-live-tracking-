@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/common/StatusBadge';
-import { RefreshCw, CheckCircle, ChevronRight, Camera, Plus, Wrench, AlertTriangle, X } from 'lucide-react';
+import { RefreshCw, CheckCircle, ChevronRight, Camera, Plus, Wrench, AlertTriangle, X, Search, Loader } from 'lucide-react';
 import CCEmailInput from '../components/common/CCEmailInput';
 
 const ISSUE_TYPES = ['Hardware Failure', 'Performance Issue', 'Upgrade Request', 'Battery Issue', 'Screen Damage', 'Other'];
@@ -50,6 +50,8 @@ export default function SwapLaptop() {
   const [oldCondition, setOldCondition] = useState('working');
   const [ccEmails, setCCEmails] = useState([]);
   const [done, setDone] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [prefillAttempted, setPrefillAttempted] = useState(false);
 
   const [preparedBy, setPreparedBy] = useState('');
   const [issueImages, setIssueImages] = useState([]);
@@ -57,12 +59,83 @@ export default function SwapLaptop() {
   const activeAllocs = allocations.filter(a => a.status === 'Active');
   const stockAssets = assets.filter(a => a.status === 'Stock');
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CHATBOT PREFILL HOOK – auto-selects allocation passed from chatbot
+  // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (location.state?.allocationId) {
+    // Check if chatbot navigated here with pre-filled data
+    const state = location.state;
+    if (!state || prefillAttempted) return;
+
+    const prefillId     = state.prefillAllocationId || state.allocationId;
+    const prefillAsset  = state.prefillAssetId      || state.assetId;
+    const prefillEmpId  = state.prefillEmpId        || state.empId;
+    const prefillEmpName= state.prefillEmpName      || state.empName;
+
+    // Also check for pre-filled new laptop suggestion
+    const prefillNewAsset = state.prefillNewAssetId || state.suggestedAssetId;
+
+    if (prefillNewAsset) {
+      setNewAssetId(prefillNewAsset);
+    }
+
+    if (!prefillId && !prefillAsset) return;
+
+    setPrefillAttempted(true);
+    setIsLoading(true);
+
+    // Wait for allocations to load, then find and select the matching one
+    const tryPrefill = () => {
+      if (!activeAllocs || activeAllocs.length === 0) {
+        // Still loading, retry
+        return false;
+      }
+
+      // Find by DB id first, then by asset_id, then by emp_id
+      const match =
+        activeAllocs.find(a => a.id === prefillId) ||
+        activeAllocs.find(a => a.assetId === prefillAsset) ||
+        activeAllocs.find(a => a.empId === prefillEmpId && a.status === 'Active');
+
+      if (match) {
+        setSelectedAllocId(match.id);
+        setStep(2);
+        setIsLoading(false);
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately (if allocations already loaded)
+    if (!tryPrefill()) {
+      // If not loaded yet, retry every 500ms up to 5 seconds
+      let attempts = 0;
+      const maxAttempts = 10;
+      const interval = setInterval(() => {
+        attempts++;
+        if (tryPrefill() || attempts >= maxAttempts) {
+          clearInterval(interval);
+          setIsLoading(false);
+          if (attempts >= maxAttempts && !selectedAllocId) {
+            console.warn('Prefill failed: allocation not found');
+          }
+        }
+      }, 500);
+      return () => clearInterval(interval);
+    }
+
+    // Clear state so back-navigation doesn't re-trigger
+    window.history.replaceState({}, document.title);
+  }, [location.state, activeAllocs, prefillAttempted, selectedAllocId]);
+
+  // Legacy support for simple allocationId
+  useEffect(() => {
+    if (location.state?.allocationId && !selectedAllocId && !prefillAttempted) {
       setSelectedAllocId(location.state.allocationId);
       setStep(2);
+      setPrefillAttempted(true);
     }
-  }, [location.state]);
+  }, [location.state, selectedAllocId, prefillAttempted]);
 
   const alloc = allocations.find(a => a.id === selectedAllocId);
   const oldAsset = alloc ? assets.find(a => a.id === alloc.assetId) : null;
@@ -115,6 +188,22 @@ export default function SwapLaptop() {
     );
   }
 
+  // Show loading state while prefill is in progress
+  if (isLoading && step === 2 && !alloc) {
+    return (
+      <div className="fade-in">
+        <div className="page-header">
+          <h1>Swap Laptop</h1>
+          <p>Replace an employee's current laptop with another unit</p>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <Loader size={40} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px', color: 'var(--accent)' }} />
+          <p style={{ color: 'var(--text-muted)' }}>Loading allocation details...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fade-in">
       <div className="page-header">
@@ -136,14 +225,29 @@ export default function SwapLaptop() {
       {step === 1 && (
         <div className="card fade-in">
           <div className="section-title">Step 1 — Find Allocation</div>
+          
           <div className="form-group" style={{ maxWidth: 480 }}>
             <label className="form-label">Select Active Allocation *</label>
-            <select className="form-select" value={selectedAllocId} onChange={e => setSelectedAllocId(e.target.value)}>
+            <select 
+              className="form-select" 
+              value={selectedAllocId} 
+              onChange={e => setSelectedAllocId(e.target.value)}
+              style={{ marginBottom: 8 }}
+            >
               <option value="">-- Search by employee or asset --</option>
-              {activeAllocs.map(a => (
-                <option key={a.id} value={a.id}>{a.empName} (ID: {a.empId}) — {a.assetId}</option>
-              ))}
+              {activeAllocs.map(a => {
+                const asset = assets.find(ast => ast.id === a.assetId);
+                return (
+                  <option key={a.id} value={a.id}>
+                    {a.empName} (ID: {a.empId}) — {asset?.id || a.assetId}
+                  </option>
+                );
+              })}
             </select>
+            <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 4 }}>
+              <Search size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+              Tip: Type to search in the dropdown
+            </div>
           </div>
           <button className="btn btn-primary" disabled={!selectedAllocId} onClick={() => setStep(2)}>
             Continue <ChevronRight size={15} />
@@ -152,30 +256,40 @@ export default function SwapLaptop() {
       )}
 
       {/* Step 2: Old Laptop Details */}
-      {step === 2 && alloc && oldAsset && (
+      {step === 2 && (
         <div className="card fade-in">
           <div className="section-title">Step 2 — Current Laptop Details</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Employee</div>
-              <div className="info-row"><span className="info-label">Name</span><span className="info-value">{alloc.empName}</span></div>
-              <div className="info-row"><span className="info-label">ID</span><span className="info-value">{alloc.empId}</span></div>
-              <div className="info-row"><span className="info-label">Department</span><span className="info-value">{alloc.department || '—'}</span></div>
-              <div className="info-row"><span className="info-label">Project</span><span className="info-value">{alloc.project || '—'}</span></div>
+          
+          {!alloc || !oldAsset ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <Loader size={32} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px', color: 'var(--accent)' }} />
+              <p style={{ color: 'var(--text-muted)' }}>Loading allocation details...</p>
             </div>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Current Laptop</div>
-              <div className="info-row"><span className="info-label">Asset No</span><span className="info-value" style={{ color: 'var(--accent)', fontFamily: 'var(--mono)' }}>{oldAsset.id}</span></div>
-              <div className="info-row"><span className="info-label">Serial</span><span className="info-value" style={{ fontFamily: 'var(--mono)' }}>{oldAsset.serial}</span></div>
-              <div className="info-row"><span className="info-label">Model</span><span className="info-value">{oldAsset.brand} {oldAsset.model}</span></div>
-              <div className="info-row"><span className="info-label">Config</span><span className="info-value">{oldAsset.config}</span></div>
-              <div className="info-row"><span className="info-label">Allocated</span><span className="info-value" style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{alloc.allocationDate}</span></div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-            <button className="btn btn-secondary" onClick={() => setStep(1)}>Back</button>
-            <button className="btn btn-primary" onClick={() => setStep(3)}>Select New Laptop <ChevronRight size={15} /></button>
-          </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Employee</div>
+                  <div className="info-row"><span className="info-label">Name</span><span className="info-value">{alloc.empName}</span></div>
+                  <div className="info-row"><span className="info-label">ID</span><span className="info-value">{alloc.empId}</span></div>
+                  <div className="info-row"><span className="info-label">Department</span><span className="info-value">{alloc.department || '—'}</span></div>
+                  <div className="info-row"><span className="info-label">Project</span><span className="info-value">{alloc.project || '—'}</span></div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>Current Laptop</div>
+                  <div className="info-row"><span className="info-label">Asset No</span><span className="info-value" style={{ color: 'var(--accent)', fontFamily: 'var(--mono)' }}>{oldAsset.id}</span></div>
+                  <div className="info-row"><span className="info-label">Serial</span><span className="info-value" style={{ fontFamily: 'var(--mono)' }}>{oldAsset.serial}</span></div>
+                  <div className="info-row"><span className="info-label">Model</span><span className="info-value">{oldAsset.brand} {oldAsset.model}</span></div>
+                  <div className="info-row"><span className="info-label">Config</span><span className="info-value">{oldAsset.config}</span></div>
+                  <div className="info-row"><span className="info-label">Allocated</span><span className="info-value" style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{alloc.allocationDate}</span></div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                <button className="btn btn-secondary" onClick={() => setStep(1)}>Back</button>
+                <button className="btn btn-primary" onClick={() => setStep(3)}>Select New Laptop <ChevronRight size={15} /></button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -196,24 +310,26 @@ export default function SwapLaptop() {
                     alignItems: 'center',
                     gap: 14,
                     padding: '14px 16px',
-                    background: 'var(--surface2)',
-                    border: '1px solid var(--border)',
+                    background: newAssetId === a.id ? 'var(--accent-glow)' : 'var(--surface2)',
+                    border: newAssetId === a.id ? '1px solid var(--accent)' : '1px solid var(--border)',
                     borderRadius: 'var(--radius)',
                     transition: 'all 0.2s',
                   }}
                 >
-                  {/* Asset info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--text)' }}>{a.id}</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-dim)', marginTop: 2 }}>
                       {a.brand} {a.model} — {a.config}
                     </div>
+                    {a.serial && (
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--mono)', marginTop: 2 }}>
+                        SN: {a.serial}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Status badge */}
                   <StatusBadge status={a.status} />
 
-                  {/* Continue button per row */}
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={() => handleSelectAndContinue(a.id)}
@@ -226,7 +342,6 @@ export default function SwapLaptop() {
             </div>
           )}
 
-          {/* Only Back button at the bottom — no global Continue */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-secondary" onClick={() => setStep(2)}>Back</button>
           </div>
@@ -234,7 +349,7 @@ export default function SwapLaptop() {
       )}
 
       {/* Step 4: Reason & Confirm */}
-      {step === 4 && (
+      {step === 4 && alloc && oldAsset && (
         <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
           {/* LEFT — Issue details + new fields */}

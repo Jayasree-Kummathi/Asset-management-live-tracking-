@@ -1199,10 +1199,25 @@ export default function AIChatbot({ currentPage = 'default' }) {
     });
   }, [navigate]);
 
-  const handleSwap = useCallback((alloc) => {
-    setOpen(false);
-    navigate('/swap', { state: { allocationId: alloc?.id || alloc?.alloc_id } });
-  }, [navigate]);
+const handleSwap = useCallback((alloc) => {
+  setOpen(false);
+  // Ensure we have the allocation object with all required fields
+  const allocId = alloc?.id || alloc?.dbId || alloc?.alloc_id;
+  const assetId = alloc?.asset_id || alloc?.assetId;
+  const empId = alloc?.emp_id || alloc?.empId;
+  const empName = alloc?.emp_name || alloc?.empName;
+  
+  console.log('[Chatbot] Navigating to swap with:', { allocId, assetId, empId, empName });
+  
+  navigate('/swap', { 
+    state: { 
+      prefillAllocationId: allocId,
+      prefillAssetId: assetId,
+      prefillEmpId: empId,
+      prefillEmpName: empName,
+    }
+  });
+}, [navigate]);
 
   const handleConfirmNewEmployee = useCallback((empData, photoFile) => {
     setOpen(false);
