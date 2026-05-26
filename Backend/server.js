@@ -57,6 +57,7 @@ app.use('/api/licenses', require('./routes/licenses'));
 app.use('/api/employees', require('./routes/employeeRoutes'));
 // ✅ FIXED ACCESS CONTROL ROUTE
 app.use('/api/access-control', require('./routes/accessControl'));
+app.use('/api/chatbot',        require('./routes/chatbot'));     
 
 // ─── Health check ───────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

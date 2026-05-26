@@ -896,3 +896,41 @@ exports.syncExistingEmployees = async () => {
     return { success: false, error: err.message };
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @route GET /api/licenses/home-stats
+// Dashboard: home license counts with seat usage per license
+// ─────────────────────────────────────────────────────────────────────────────
+exports.getHomeStats = asyncHandler(async (req, res) => {
+  const result = await query(`
+    SELECT 
+      l.id,
+      l.name,
+      l.icon,
+      l.color,
+      l.category,
+      l.total_seats,
+      COUNT(la.id) AS assigned_count
+    FROM licenses l
+    LEFT JOIN license_assignments la ON la.license_id = l.id
+    GROUP BY l.id
+    ORDER BY l.name ASC
+  `);
+
+  const licenses = result.rows;
+  const totalSeats     = licenses.reduce((s, l) => s + (parseInt(l.total_seats) || 0), 0);
+  const totalAssigned  = licenses.reduce((s, l) => s + (parseInt(l.assigned_count) || 0), 0);
+
+  res.json({
+    success: true,
+    data: {
+      licenses,
+      summary: {
+        total_licenses: licenses.length,
+        total_seats:    totalSeats,
+        total_assigned: totalAssigned,
+        total_remaining: Math.max(0, totalSeats - totalAssigned),
+      }
+    }
+  });
+});

@@ -303,7 +303,50 @@ const buildWelcomeEmailHtml = async (emp, showPassword) => {
 
   const firstName = (emp_name || '').split(' ')[0] || 'Employee';
 
-  const loginUrl = (portal_url && portal_url.trim()) ? portal_url.trim() : HELPDESK_URL;
+let loginUrl = HELPDESK_URL;
+let portalLinksHtml = `
+  <a href="${HELPDESK_URL}" style="color:#2563eb;text-decoration:none;font-weight:600;">
+    ${HELPDESK_URL}
+  </a>
+`;
+
+if (portal_url) {
+  try {
+    // JSON array string
+    if (typeof portal_url === 'string' && portal_url.trim().startsWith('[')) {
+      const parsed = JSON.parse(portal_url);
+
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        loginUrl = parsed[0].url;
+
+        portalLinksHtml = parsed.map(portal => `
+          <div style="margin-bottom:6px;">
+            <a href="${portal.url}"
+               style="color:#2563eb;text-decoration:none;font-weight:600;"
+               target="_blank">
+              ${portal.label}
+            </a>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Plain URL string
+    else if (typeof portal_url === 'string' && portal_url.trim().startsWith('http')) {
+      loginUrl = portal_url.trim();
+
+      portalLinksHtml = `
+        <a href="${loginUrl}"
+           style="color:#2563eb;text-decoration:none;font-weight:600;"
+           target="_blank">
+          ${loginUrl}
+        </a>
+      `;
+    }
+  } catch (err) {
+    console.error('Portal URL parse error:', err);
+  }
+}
   const logoAtts = getLogoAttachment();
   const hasLogo  = logoAtts.length > 0;
 
@@ -445,9 +488,9 @@ const buildWelcomeEmailHtml = async (emp, showPassword) => {
             </td></tr>
             <tr style="background-color:#ffffff;">
               <td style="padding:9px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;width:38%;">&#127760; Portal URL</td>
-              <td style="padding:9px 12px;font-size:11px;border-bottom:1px solid #edf0f2;font-family:Arial,sans-serif;">
-                <a href="${loginUrl}" style="color:#2563eb;text-decoration:none;font-weight:600;">${loginUrl}</a>
-              </td>
+             <td style="padding:9px 12px;font-size:11px;border-bottom:1px solid #edf0f2;font-family:Arial,sans-serif;">
+  ${portalLinksHtml}
+</td>
             </tr>
             <tr style="background-color:#f7faf8;">
               <td style="padding:9px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;">&#128100; Username</td>

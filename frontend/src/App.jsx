@@ -7,6 +7,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import Sidebar        from './components/layout/Sidebar';
 import Topbar         from './components/layout/Topbar';
 import ToastContainer from './components/common/Toast';
+import AIChatbot from './components/common/AIChatbot';
 
 import Login             from './pages/Login';
 import Homepage          from './pages/Homepage';
@@ -67,7 +68,6 @@ function ProtectedLayout() {
           <Topbar />
           <div className="page-content">
             <Routes>
-
               {/* ── Employee-only ───────────────────────────────────────── */}
               <Route path="/my-dashboard" element={<EmployeeDashboard />} />
               <Route path="/my-laptop"    element={<EmployeeDashboard />} />
@@ -182,12 +182,13 @@ function ProtectedLayout() {
               <Route path="*" element={
                 <Navigate to={isEmployee ? '/my-dashboard' : '/dashboard'} replace />
               } />
-
             </Routes>
           </div>
         </div>
         <ToastContainer />
       </div>
+      {/* AI Chatbot - appears on all pages when user is logged in */}
+      <AIChatbot />
     </AppProvider>
   );
 }

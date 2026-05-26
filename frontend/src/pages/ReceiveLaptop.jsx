@@ -1,3 +1,9 @@
+// ─── ReceiveLaptop.jsx ───────────────────────────────────────────────────────
+// Fully updated component with chatbot pre-fill integration.
+// Includes portal-based allocation dropdown, condition assessment, photo uploads,
+// CC emails, and auto-selection when navigated from chatbot.
+// ─────────────────────────────────────────────────────────────────────────────
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useApp } from '../context/AppContext';
@@ -309,9 +315,58 @@ export default function ReceiveLaptop() {
 
   const activeAllocs = allocations.filter(a => a.status === 'Active');
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CHATBOT PREFILL HOOK – auto-selects allocation passed from chatbot
+  // Place this AFTER useState declarations, BEFORE the other useEffect
+  // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (location.state?.allocationId) setSelectedAllocId(location.state.allocationId);
-  }, [location.state]);
+    // Check if chatbot navigated here with a pre-filled allocation
+    const state = location.state;
+    if (!state) return;
+
+    const prefillId     = state.prefillAllocationId || state.allocationId;
+    const prefillAsset  = state.prefillAssetId      || state.assetId;
+    const prefillEmpId  = state.prefillEmpId        || state.empId;
+    const prefillEmpName= state.prefillEmpName      || state.empName;
+
+    if (!prefillId && !prefillAsset) return;
+
+    // Wait for allocations to load, then find and select the matching one
+    const tryPrefill = () => {
+      // activeAllocs is the filtered list of active allocations
+      if (!activeAllocs || activeAllocs.length === 0) return false;
+
+      // Find by DB id first, then by asset_id, then by emp_id
+      const match =
+        activeAllocs.find(a => a.id === prefillId) ||
+        activeAllocs.find(a => a.assetId === prefillAsset) ||
+        activeAllocs.find(a => a.empId   === prefillEmpId && a.status === 'Active');
+
+      if (match) {
+        setSelectedAllocId(match.id);
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately (if allocations already loaded)
+    if (!tryPrefill()) {
+      // If not loaded yet, retry after a short delay
+      const timer = setTimeout(tryPrefill, 800);
+      return () => clearTimeout(timer);
+    }
+
+    // Clear state so back-navigation doesn't re-trigger
+    window.history.replaceState({}, document.title);
+  }, [location.state, activeAllocs]);
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  // Handle direct navigation with allocationId (legacy support)
+  useEffect(() => {
+    if (location.state?.allocationId && !selectedAllocId) {
+      setSelectedAllocId(location.state.allocationId);
+    }
+  }, [location.state, selectedAllocId]);
 
   // Reset condition when allocation changes
   const handleSelectAlloc = (id) => {
