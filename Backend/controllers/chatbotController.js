@@ -639,4 +639,119 @@ const search = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getContext, search, ask };
+const parseEmployee = asyncHandler(async (req, res) => {
+  const { rawText } = req.body;
+ 
+  if (!rawText?.trim()) {
+    return res.status(400).json({ success: false, message: 'rawText is required' });
+  }
+ 
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ success: false, message: 'GROQ_API_KEY not set' });
+  }
+ 
+  const client = new OpenAI({
+    apiKey,
+    baseURL: 'https://api.groq.com/openai/v1',
+  });
+ 
+  const systemPrompt = `You are an HR data parser. Extract employee details from pasted Excel/spreadsheet data.
+ 
+RULES:
+- Return ONLY valid JSON, no explanation, no markdown, no backticks
+- Normalize ALL dates to YYYY-MM-DD format
+  - "25-05-2026" → "2026-05-25"
+  - "21-May-26" → "2026-05-21"
+  - "9/18/1997" → "1997-09-18"
+  - "13-Jan-1995" → "1995-01-13"
+- The company email is typically firstname.lastname@mindteck.com or similar corporate domain
+- The personal email is gmail/yahoo/hotmail etc
+- Fix obvious typos: "Inside Sates" → "Inside Sales"
+- "Service Line & Department" maps to serviceLine
+- Normalize blood group: "A+ve" → "A+", "O+ve" → "O+", "B-ve" → "B-"
+- If a field is not found, use null (not empty string)
+- empId is usually alphanumeric like IBE2897, MT001 etc
+ 
+Return EXACTLY this JSON shape:
+{
+  "empId": "",
+  "name": "",
+  "doj": "",
+  "dob": "",
+  "level": "",
+  "designation": "",
+  "location": "",
+  "mobile": "",
+  "serviceLine": "",
+  "client": null,
+  "manager": "",
+  "suggestedEmail": "",
+  "personalEmail": "",
+  "bloodGroup": "",
+  "cif": null
+}`;
+ 
+  try {
+    const completion = await client.chat.completions.create({
+      model: 'llama-3.1-8b-instant',
+      temperature: 0,
+      max_tokens: 400,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: rawText.trim() },
+      ],
+    });
+ 
+    const raw = completion.choices?.[0]?.message?.content || '';
+ 
+    // Strip any accidental markdown fences
+    const cleaned = raw
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+ 
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      console.error('[parseEmployee] JSON parse failed. Raw output:', raw);
+      return res.status(422).json({
+        success: false,
+        message: 'AI returned invalid JSON. Try pasting header row + data row only.',
+        raw,
+      });
+    }
+ 
+    // Sanitize — ensure all keys exist
+    const result = {
+      empId:          (parsed.empId         || '').toString().toUpperCase().trim(),
+      name:           parsed.name           || '',
+      doj:            parsed.doj            || '',
+      dob:            parsed.dob            || '',
+      level:          parsed.level          || '',
+      designation:    parsed.designation    || '',
+      location:       parsed.location       || '',
+      mobile:         (parsed.mobile        || '').toString().trim(),
+      serviceLine:    parsed.serviceLine    || '',
+      client:         parsed.client         || null,
+      manager:        parsed.manager        || '',
+      suggestedEmail: parsed.suggestedEmail || '',
+      personalEmail:  parsed.personalEmail  || '',
+      bloodGroup:     parsed.bloodGroup     || '',
+      cif:            parsed.cif            || null,
+    };
+ 
+  
+    return res.json({ success: true, data: result });
+ 
+  } catch (err) {
+    console.error('[parseEmployee] Groq error:', err.message);
+    return res.status(502).json({
+      success: false,
+      message: 'AI parse failed: ' + err.message,
+    });
+  }
+});
+ 
+module.exports = { getContext, search, ask,parseEmployee };

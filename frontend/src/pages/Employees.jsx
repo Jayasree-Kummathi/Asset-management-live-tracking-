@@ -1145,7 +1145,11 @@ function DeletedEmployeesPage({ onBack }) {
 // EMPLOYEE DETAIL PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 function EmployeeDetailPage({ emp, onBack, onEdit, isAdmin }) {
+  const { user } = useAuth();
   const portalUrls = portalUrlsFromString(emp.portal_url||'');
+  
+  // Only sysadmin@mindteck.com can view passwords
+  const canViewPassword = user?.email?.toLowerCase() === 'sysadmin@mindteck.com';
 
   const InfoCard = ({ icon:Icon, label, value, mono=false, href=null, accent=false }) => {
     if (!value) return null;
@@ -1158,6 +1162,7 @@ function EmployeeDetailPage({ emp, onBack, onEdit, isAdmin }) {
       </div>
     );
   };
+  
   const SectionHeader = ({ icon:Icon, title, color='var(--accent)' }) => (
     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12, marginTop:8 }}>
       <div style={{ width:28, height:28, borderRadius:7, background:`${color}18`, display:'flex', alignItems:'center', justifyContent:'center' }}><Icon size={14} color={color}/></div>
@@ -1265,19 +1270,25 @@ function EmployeeDetailPage({ emp, onBack, onEdit, isAdmin }) {
               </div>
             </div>
           )}
-          {isAdmin&&(emp.company_email_password||emp.password_hint)&&(
+          
+          {/* CREDENTIALS SECTION - Only visible to sysadmin@mindteck.com */}
+          {canViewPassword && (emp.company_email_password || emp.password_hint) && (
             <div>
               <SectionHeader icon={Lock} title="Credentials" color="#f59e0b"/>
               <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:10 }}>
-                {emp.company_email_password&&(
+                {emp.company_email_password && (
                   <div style={{ padding:'12px 16px', background:'rgba(245,158,11,0.06)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:10 }}>
-                    <div style={{ fontSize:11, color:'#92400e', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4, display:'flex', alignItems:'center', gap:6 }}><Lock size={11}/> Email Password</div>
+                    <div style={{ fontSize:11, color:'#92400e', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4, display:'flex', alignItems:'center', gap:6 }}>
+                      <Lock size={11}/> Email Password
+                    </div>
                     <PasswordViewOnly value={emp.company_email_password}/>
                   </div>
                 )}
-                {emp.password_hint&&(
+                {emp.password_hint && (
                   <div style={{ padding:'12px 16px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10 }}>
-                    <div style={{ fontSize:11, color:'var(--text-muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4, display:'flex', alignItems:'center', gap:6 }}><Key size={11}/> Password Hint</div>
+                    <div style={{ fontSize:11, color:'var(--text-muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4, display:'flex', alignItems:'center', gap:6 }}>
+                      <Key size={11}/> Password Hint
+                    </div>
                     <div style={{ fontSize:13, color:'var(--text)', fontWeight:600 }}>{emp.password_hint}</div>
                   </div>
                 )}

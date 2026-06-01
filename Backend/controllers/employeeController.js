@@ -24,12 +24,12 @@ const bootstrapColumn = async () => {
     const existingCols = await query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'employees'`);
     const columnNames  = existingCols.rows.map(c => c.column_name);
     const toAdd = [
-  ['company_email_password', 'VARCHAR(200)'],
-  ['deleted_at',             'TIMESTAMPTZ DEFAULT NULL'],
-  ['cc_emails',              "TEXT DEFAULT ''"],
-  ['portal_url',             'VARCHAR(500) DEFAULT NULL'],
-  ['exit_checklist',         'JSONB DEFAULT NULL'],
-];
+      ['company_email_password', 'VARCHAR(200)'],
+      ['deleted_at',             'TIMESTAMPTZ DEFAULT NULL'],
+      ['cc_emails',              "TEXT DEFAULT ''"],
+      ['portal_url',             'VARCHAR(500) DEFAULT NULL'],
+      ['exit_checklist',         'JSONB DEFAULT NULL'],
+    ];
     for (const [col, def] of toAdd) {
       if (!columnNames.includes(col)) {
         await query(`ALTER TABLE employees ADD COLUMN ${col} ${def};`);
@@ -228,8 +228,7 @@ const buildSupportContactsHtml = (contacts) =>
       </tr></table>
     </td></tr>`).join('');
 
-// ── EXIT DOOR ICON — FIX: Running man on RIGHT side (exiting away from door) ──
-// Door is on the LEFT, running man is on the RIGHT — he is clearly leaving/exiting
+// ── EXIT DOOR ICON ────────────────────────────────────────────────────────────
 const buildExitDoorIconHtml = () => `
 <table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 16px auto;">
 <tr><td align="center" valign="middle">
@@ -247,7 +246,6 @@ const buildExitDoorIconHtml = () => `
   </table>
 
   <!-- Door frame (LEFT) + Running man (RIGHT) side by side -->
-  <!-- Man is on the RIGHT running away = he is exiting the building -->
   <table cellpadding="0" cellspacing="0" border="0" align="center">
     <tr valign="bottom">
 
@@ -276,7 +274,7 @@ const buildExitDoorIconHtml = () => `
         </table>
       </td>
 
-      <!-- Running man: NOW on the RIGHT side — running away from/out of the door ✅ -->
+      <!-- Running man: on the RIGHT side — running away from/out of the door -->
       <td valign="bottom" align="center"
         style="font-size:38px;font-family:Arial,sans-serif;line-height:1;
         padding-left:4px;padding-bottom:6px;color:#ffffff;">
@@ -303,50 +301,44 @@ const buildWelcomeEmailHtml = async (emp, showPassword) => {
 
   const firstName = (emp_name || '').split(' ')[0] || 'Employee';
 
-let loginUrl = HELPDESK_URL;
-let portalLinksHtml = `
-  <a href="${HELPDESK_URL}" style="color:#2563eb;text-decoration:none;font-weight:600;">
-    ${HELPDESK_URL}
-  </a>
-`;
+  let loginUrl = HELPDESK_URL;
+  let portalLinksHtml = `
+    <a href="${HELPDESK_URL}" style="color:#2563eb;text-decoration:none;font-weight:600;">
+      ${HELPDESK_URL}
+    </a>
+  `;
 
-if (portal_url) {
-  try {
-    // JSON array string
-    if (typeof portal_url === 'string' && portal_url.trim().startsWith('[')) {
-      const parsed = JSON.parse(portal_url);
-
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        loginUrl = parsed[0].url;
-
-        portalLinksHtml = parsed.map(portal => `
-          <div style="margin-bottom:6px;">
-            <a href="${portal.url}"
-               style="color:#2563eb;text-decoration:none;font-weight:600;"
-               target="_blank">
-              ${portal.label}
-            </a>
-          </div>
-        `).join('');
+  if (portal_url) {
+    try {
+      if (typeof portal_url === 'string' && portal_url.trim().startsWith('[')) {
+        const parsed = JSON.parse(portal_url);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loginUrl = parsed[0].url;
+          portalLinksHtml = parsed.map(portal => `
+            <div style="margin-bottom:6px;">
+              <a href="${portal.url}"
+                style="color:#2563eb;text-decoration:none;font-weight:600;"
+                target="_blank">
+                ${portal.label}
+              </a>
+            </div>
+          `).join('');
+        }
+      } else if (typeof portal_url === 'string' && portal_url.trim().startsWith('http')) {
+        loginUrl = portal_url.trim();
+        portalLinksHtml = `
+          <a href="${loginUrl}"
+            style="color:#2563eb;text-decoration:none;font-weight:600;"
+            target="_blank">
+            ${loginUrl}
+          </a>
+        `;
       }
+    } catch (err) {
+      console.error('Portal URL parse error:', err);
     }
-
-    // Plain URL string
-    else if (typeof portal_url === 'string' && portal_url.trim().startsWith('http')) {
-      loginUrl = portal_url.trim();
-
-      portalLinksHtml = `
-        <a href="${loginUrl}"
-           style="color:#2563eb;text-decoration:none;font-weight:600;"
-           target="_blank">
-          ${loginUrl}
-        </a>
-      `;
-    }
-  } catch (err) {
-    console.error('Portal URL parse error:', err);
   }
-}
+
   const logoAtts = getLogoAttachment();
   const hasLogo  = logoAtts.length > 0;
 
@@ -435,13 +427,13 @@ if (portal_url) {
             ${hasLogo
               ? `<img src="cid:mindteck_logo" alt="Mindteck" height="44" style="display:block;height:44px;border:0;">`
               : `<table cellpadding="0" cellspacing="0" border="0"><tr valign="middle">
-                   <td width="40" height="40" align="center" valign="middle"
-                     style="width:40px;height:40px;background-color:#1B5E3F;border-radius:20px;font-size:19px;font-weight:900;color:#ffffff;font-family:Arial,sans-serif;">M</td>
-                   <td style="padding-left:10px;" valign="middle">
-                     <div style="font-size:20px;font-weight:900;color:#1B5E3F;font-family:Arial,sans-serif;line-height:1.1;">Mindteck</div>
-                     <div style="font-size:9px;color:#888888;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">INFORMATION TECHNOLOGY</div>
-                   </td>
-                 </tr></table>`}
+                  <td width="40" height="40" align="center" valign="middle"
+                    style="width:40px;height:40px;background-color:#1B5E3F;border-radius:20px;font-size:19px;font-weight:900;color:#ffffff;font-family:Arial,sans-serif;">M</td>
+                  <td style="padding-left:10px;" valign="middle">
+                    <div style="font-size:20px;font-weight:900;color:#1B5E3F;font-family:Arial,sans-serif;line-height:1.1;">Mindteck</div>
+                    <div style="font-size:9px;color:#888888;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">INFORMATION TECHNOLOGY</div>
+                  </td>
+                </tr></table>`}
           </td>
           <td align="right" valign="middle">
             <table cellpadding="0" cellspacing="0" border="0" align="right"><tr>
@@ -488,9 +480,9 @@ if (portal_url) {
             </td></tr>
             <tr style="background-color:#ffffff;">
               <td style="padding:9px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;width:38%;">&#127760; Portal URL</td>
-             <td style="padding:9px 12px;font-size:11px;border-bottom:1px solid #edf0f2;font-family:Arial,sans-serif;">
-  ${portalLinksHtml}
-</td>
+              <td style="padding:9px 12px;font-size:11px;border-bottom:1px solid #edf0f2;font-family:Arial,sans-serif;">
+                ${portalLinksHtml}
+              </td>
             </tr>
             <tr style="background-color:#f7faf8;">
               <td style="padding:9px 12px;font-size:11px;color:#6b7280;font-family:Arial,sans-serif;border-bottom:1px solid #edf0f2;">&#128100; Username</td>
@@ -597,42 +589,72 @@ if (portal_url) {
 
 
 // ══════════════════════════════════════════════════════════════════════════════
-// SEND WELCOME EMAIL
+// SEND WELCOME EMAIL - 2 emails only
+// Email 1 (WITH password): Employee + sysadmin@mindteck.com
+// Email 2 (WITHOUT password): All CC recipients
 // ══════════════════════════════════════════════════════════════════════════════
 const sendWelcomeEmail = async (emp) => {
   const { emp_name, company_email, personal_email, cc_emails } = emp;
   const firstName = (emp_name || '').split(' ')[0] || 'Employee';
-  const toList    = [company_email, personal_email].filter(Boolean);
-  if (!toList.length) return;
+  
+  // ──────────────────────────────────────────────────────────────────────────
+  // Build TO list for password email: Employee emails + sysadmin
+  // ──────────────────────────────────────────────────────────────────────────
+  const employeeEmails = [company_email, personal_email].filter(Boolean);
+  const SYSADMIN = 'sysadmin@mindteck.com';
+  
+  // Combine employee emails + sysadmin for the password email
+  let toListWithPassword = [...employeeEmails];
+  if (!toListWithPassword.some(email => email.toLowerCase() === SYSADMIN)) {
+    toListWithPassword.push(SYSADMIN);
+  }
+  
+  if (!toListWithPassword.length) return;
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // Build CC list for non-password email (exclude sysadmin if present)
+  // ──────────────────────────────────────────────────────────────────────────
   let ccList = [];
-  if (cc_emails) ccList = cc_emails.split(',').map(e => e.trim()).filter(Boolean);
+  if (cc_emails) {
+    ccList = cc_emails.split(',').map(e => e.trim()).filter(Boolean);
+  }
+  // Remove sysadmin from CC list if present (already getting password email)
+  const ccListWithoutPassword = ccList.filter(email => email.toLowerCase() !== SYSADMIN);
 
   const logoAtts  = getLogoAttachment();
   const photoAtts = getEmpPhotoAttachment(emp.photo_url);
 
+  // ──────────────────────────────────────────────────────────────────────────
+  // EMAIL 1: TO = Employee + sysadmin (WITH password)
+  // ──────────────────────────────────────────────────────────────────────────
   const htmlWithPassword = await buildWelcomeEmailHtml(emp, true);
   await transporter.sendMail({
-    from: FROM, to: toList.join(', '),
+    from: FROM, 
+    to: toListWithPassword.join(', '),
     subject: `Welcome to Mindteck, ${firstName}! — Your IT Access & Credentials`,
-    html: htmlWithPassword, attachments: [...logoAtts, ...photoAtts],
+    html: htmlWithPassword, 
+    attachments: [...logoAtts, ...photoAtts],
   });
-  console.log(`✅ Welcome email (with credentials) sent to ${emp_name}: ${toList.join(', ')}`);
+  console.log(`✅ Welcome email (WITH password) sent to: ${toListWithPassword.join(', ')}`);
 
-  if (ccList.length > 0) {
+  // ──────────────────────────────────────────────────────────────────────────
+  // EMAIL 2: TO = CC recipients (WITHOUT password)
+  // ──────────────────────────────────────────────────────────────────────────
+  if (ccListWithoutPassword.length > 0) {
     const htmlNoPwd = await buildWelcomeEmailHtml(emp, false);
     await transporter.sendMail({
-      from: FROM, to: ccList.join(', '),
+      from: FROM, 
+      to: ccListWithoutPassword.join(', '),
       subject: `Welcome to Mindteck, ${firstName}! — New Employee Onboarding Notification`,
-      html: htmlNoPwd, attachments: [...logoAtts, ...photoAtts],
+      html: htmlNoPwd, 
+      attachments: [...logoAtts, ...photoAtts],
     });
-    console.log(`✅ Welcome notification (without password) sent to CC: ${ccList.join(', ')}`);
+    console.log(`✅ Welcome email (WITHOUT password) sent to CC: ${ccListWithoutPassword.join(', ')}`);
   }
 };
 
-
 // ══════════════════════════════════════════════════════════════════════════════
-// EXIT EMAIL — GREY/SLATE theme + Running man on RIGHT (exiting) — FIXED
+// EXIT EMAIL
 // ══════════════════════════════════════════════════════════════════════════════
 const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
   const {
@@ -649,7 +671,7 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
     photo_url,
   } = emp;
 
-  const logoAtts = getLogoAttachment();
+  const logoAtts  = getLogoAttachment();
   const photoAtts = getEmpPhotoAttachment(photo_url);
 
   const ccEmails = (cc_emails || '')
@@ -670,6 +692,12 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
   } else {
     console.log(`ℹ️ No recipients configured for exit email — skipping for ${emp_name}`);
     return;
+  }
+
+  // Always CC sysadmin — deduplicated against toList and ccList
+  const SYSADMIN = 'sysadmin@mindteck.com';
+  if (!toList.includes(SYSADMIN) && !ccList.includes(SYSADMIN)) {
+    ccList = [SYSADMIN, ...ccList];
   }
 
   console.log(`📧 Exit email TO: ${toList.join(', ')} | CC: ${ccList.join(', ') || 'none'}`);
@@ -729,9 +757,9 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
 
   const checklistItems = [
     { key: 'email_deactivated', label: 'Email account &amp; portal access deactivated' },
-    { key: 'licenses_revoked', label: 'Software licenses revoked and reassigned' },
-    { key: 'vpn_revoked', label: 'VPN and remote access credentials revoked' },
-    { key: 'ad_removed', label: 'Removed from Active Directory / Azure AD' },
+    { key: 'licenses_revoked',  label: 'Software licenses revoked and reassigned' },
+    { key: 'vpn_revoked',       label: 'VPN and remote access credentials revoked' },
+    { key: 'ad_removed',        label: 'Removed from Active Directory / Azure AD' },
   ];
 
   const renderChecklist = checklistItems
@@ -795,7 +823,7 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
       </td>
     </tr>
 
-    <!-- Hero banner without icon -->
+    <!-- Hero banner -->
     <tr>
       <td style="background-color:#475569;padding:34px 24px 30px;" align="center">
         <div style="font-size:22px;font-weight:800;color:#ffffff;font-family:Arial,sans-serif;margin-bottom:8px;letter-spacing:-0.3px;">
@@ -912,7 +940,7 @@ const sendExitEmail = async (emp, deletedBy, checklist = {}) => {
 
   const mailOptions = {
     from: FROM,
-    to: toList.join(', '),
+    to:   toList.join(', '),
     subject: `EXIT Notification: ${emp_name} (${emp_id}) — ${deletedDate}`,
     html,
     attachments: [...logoAtts, ...photoAtts],
@@ -943,15 +971,15 @@ exports.getEmployees = asyncHandler(async (req, res) => {
   const total    = Number(countRes.rows[0].count);
   const result   = await query(
     `SELECT id, emp_id, emp_name, doj, level, designation, location,
-       mobile_no, service_line, client, reporting_manager,
-       suggested_email, personal_email, blood_group, dob,
-       password_hint, company_email, photo_url, status, notes, cc_emails, portal_url,
-       TO_CHAR(doj, 'YYYY-MM-DD') AS doj_fmt,
-       TO_CHAR(dob, 'YYYY-MM-DD') AS dob_fmt,
-       created_at
-     FROM employees ${where}
-     ORDER BY emp_name ASC
-     LIMIT $${idx} OFFSET $${idx + 1}`,
+      mobile_no, service_line, client, reporting_manager,
+      suggested_email, personal_email, blood_group, dob,
+      password_hint, company_email, photo_url, status, notes, cc_emails, portal_url,
+      TO_CHAR(doj, 'YYYY-MM-DD') AS doj_fmt,
+      TO_CHAR(dob, 'YYYY-MM-DD') AS dob_fmt,
+      created_at
+    FROM employees ${where}
+    ORDER BY emp_name ASC
+    LIMIT $${idx} OFFSET $${idx + 1}`,
     [...params, limit, offset]
   );
   res.json({ success: true, count: result.rows.length, total, data: result.rows });
@@ -963,14 +991,14 @@ exports.getEmployees = asyncHandler(async (req, res) => {
 exports.getDeletedEmployees = asyncHandler(async (req, res) => {
   const result = await query(
     `SELECT id, emp_id, emp_name, designation, company_email, personal_email,
-       service_line, location, level, reporting_manager, mobile_no,
-       blood_group, cc_emails, portal_url, doj, dob, notes, photo_url,
-       TO_CHAR(doj,'YYYY-MM-DD') AS doj_fmt,
-       TO_CHAR(dob,'YYYY-MM-DD') AS dob_fmt,
-       TO_CHAR(deleted_at,'YYYY-MM-DD HH24:MI') AS deleted_at_fmt, status,
-       exit_checklist,
-       exit_checklist->>'laptop_status' AS laptop_status
-     FROM employees WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
+      service_line, location, level, reporting_manager, mobile_no,
+      blood_group, cc_emails, portal_url, doj, dob, notes, photo_url,
+      TO_CHAR(doj,'YYYY-MM-DD') AS doj_fmt,
+      TO_CHAR(dob,'YYYY-MM-DD') AS dob_fmt,
+      TO_CHAR(deleted_at,'YYYY-MM-DD HH24:MI') AS deleted_at_fmt, status,
+      exit_checklist,
+      exit_checklist->>'laptop_status' AS laptop_status
+    FROM employees WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`
   );
   res.json({ success: true, data: result.rows });
 });
@@ -981,7 +1009,7 @@ exports.getDeletedEmployees = asyncHandler(async (req, res) => {
 exports.getEmployee = asyncHandler(async (req, res) => {
   const result = await query(
     `SELECT *, TO_CHAR(doj,'YYYY-MM-DD') AS doj_fmt, TO_CHAR(dob,'YYYY-MM-DD') AS dob_fmt
-     FROM employees WHERE emp_id = $1 AND deleted_at IS NULL`,
+    FROM employees WHERE emp_id = $1 AND deleted_at IS NULL`,
     [req.params.id]
   );
   if (!result.rows.length)
@@ -990,7 +1018,7 @@ exports.getEmployee = asyncHandler(async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// POST /api/employees
+// POST /api/employees  ← UPDATED: injects sysadmin@mindteck.com into CC
 // ─────────────────────────────────────────────────────────────────────────────
 exports.createEmployee = asyncHandler(async (req, res) => {
   const {
@@ -1038,7 +1066,13 @@ exports.createEmployee = asyncHandler(async (req, res) => {
   await audit('EMPLOYEE_ADDED', `Employee ${emp_id} (${emp_name}) added`, req.user?.name || 'Admin');
 
   if (company_email || personal_email) {
-    const empData = { ...req.body, doj: doj || null };
+    // Always include sysadmin@mindteck.com in CC for the welcome email — deduplicated
+    const SYSADMIN = 'sysadmin@mindteck.com';
+    const existingCc = (cc_emails || '').split(',').map(e => e.trim()).filter(Boolean);
+    const mergedCc = existingCc.includes(SYSADMIN)
+      ? existingCc
+      : [SYSADMIN, ...existingCc];
+    const empData = { ...req.body, doj: doj || null, cc_emails: mergedCc.join(', ') };
     sendWelcomeEmail(empData).catch(err => console.error('Welcome email failed:', err.message));
   }
 
@@ -1086,8 +1120,8 @@ exports.deleteEmployee = asyncHandler(async (req, res) => {
 
   const empRes = await query(
     `SELECT emp_name, designation, service_line, company_email, personal_email,
-       location, reporting_manager, doj, cc_emails, mobile_no, level, photo_url
-     FROM employees WHERE emp_id = $1 AND deleted_at IS NULL`,
+      location, reporting_manager, doj, cc_emails, mobile_no, level, photo_url
+    FROM employees WHERE emp_id = $1 AND deleted_at IS NULL`,
     [empId]
   );
   if (!empRes.rows.length)
@@ -1097,9 +1131,9 @@ exports.deleteEmployee = asyncHandler(async (req, res) => {
   const deletedBy = req.user?.name || 'IT Admin';
 
   await query(
-  `UPDATE employees SET deleted_at = NOW(), status = 'Inactive', exit_checklist = $2 WHERE emp_id = $1`,
-  [empId, JSON.stringify(checklist)]
-);
+    `UPDATE employees SET deleted_at = NOW(), status = 'Inactive', exit_checklist = $2 WHERE emp_id = $1`,
+    [empId, JSON.stringify(checklist)]
+  );
   await query(`DELETE FROM license_assignments WHERE emp_id = $1`, [empId]).catch(() => {});
   await audit('EMPLOYEE_DELETED', `Employee ${empId} (${empData.emp_name}) deleted`, deletedBy);
 
@@ -1165,14 +1199,14 @@ exports.deleteSupportContact = asyncHandler(async (req, res) => {
 
 exports.updateDeletedLaptopStatus = asyncHandler(async (req, res) => {
   const { laptop_status } = req.body;
-  if (!laptop_status) 
+  if (!laptop_status)
     return res.status(400).json({ success: false, message: 'laptop_status is required' });
 
   const result = await query(
     `UPDATE employees
-     SET exit_checklist = COALESCE(exit_checklist, '{}'::jsonb) || $1::jsonb
-     WHERE emp_id = $2 AND deleted_at IS NOT NULL
-     RETURNING emp_id, exit_checklist->>'laptop_status' AS laptop_status`,
+    SET exit_checklist = COALESCE(exit_checklist, '{}'::jsonb) || $1::jsonb
+    WHERE emp_id = $2 AND deleted_at IS NOT NULL
+    RETURNING emp_id, exit_checklist->>'laptop_status' AS laptop_status`,
     [JSON.stringify({ laptop_status }), req.params.id]
   );
 

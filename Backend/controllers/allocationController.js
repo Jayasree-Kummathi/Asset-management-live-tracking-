@@ -11,7 +11,7 @@ const asyncHandler      = require('../utils/asyncHandler');
 const generateId        = require('../utils/generateId');
 const { sendAllocationEmail, sendReceiveEmail, sendSwapEmail, sendAuditEmail } = require('../utils/emailService');
 const { generateToken } = require('./acceptanceController');
-const { generateQRBuffer } = require('../utils/generateQR');
+// const { generateQRBuffer } = require('../utils/generateQR'); // QR disabled
 
 // ── Accessory stock helpers ───────────────────────────────────────────────────
 const deductAccessoryStock = async (client_pg, accessoryDetails) => {
@@ -200,13 +200,15 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
       acceptanceLink = await generateToken(allocationDbId, asset_id.toUpperCase(), emp_name, emp_email || '');
     } catch (e) { console.error('Token gen failed:', e.message); }
 
-    const baseUrl = process.env.SERVER_URL || 'http://localhost:5000';
-    const cardUrl = `${baseUrl}/card/${allocationId}`;
-    let qrBuffer  = null;
-    try {
-      qrBuffer = await generateQRBuffer(cardUrl);
-      console.log(`📱 QR generated for ${allocationId} → ${cardUrl}`);
-    } catch (e) { console.error('QR gen failed:', e.message); }
+    // ── QR code generation disabled ──────────────────────────────────────────
+    // const baseUrl = process.env.SERVER_URL || 'http://localhost:5000';
+    // const cardUrl = `${baseUrl}/card/${allocationId}`;
+    // let qrBuffer  = null;
+    // try {
+    //   qrBuffer = await generateQRBuffer(cardUrl);
+    //   console.log(`📱 QR generated for ${allocationId} → ${cardUrl}`);
+    // } catch (e) { console.error('QR gen failed:', e.message); }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const assetInfoRes = await query(
       'SELECT brand, model, config, serial FROM assets WHERE asset_id = $1',
@@ -230,8 +232,8 @@ exports.allocateLaptop = asyncHandler(async (req, res) => {
       allocatedByEmail: req.user?.email || '',
       extraCCs: extra_ccs || [],
       acceptanceLink,
-      qrCodeBuffer: qrBuffer,
-      qrCardUrl: cardUrl,
+      qrCodeBuffer: null,   // QR disabled
+      qrCardUrl: '',        // QR disabled
       allocationId,
       preparedBy: staffName,
       damagePhotos: damage_photos || '[]',
@@ -440,10 +442,12 @@ exports.swapLaptop = asyncHandler(async (req, res) => {
 
     await client_pg.query('COMMIT');
 
-    const baseUrl = process.env.SERVER_URL || 'http://localhost:5000';
-    const cardUrl = `${baseUrl}/card/${newAllocId}`;
-    let qrBuffer  = null;
-    try { qrBuffer = await generateQRBuffer(cardUrl); } catch (_) {}
+    // ── QR code generation disabled ──────────────────────────────────────────
+    // const baseUrl = process.env.SERVER_URL || 'http://localhost:5000';
+    // const cardUrl = `${baseUrl}/card/${newAllocId}`;
+    // let qrBuffer  = null;
+    // try { qrBuffer = await generateQRBuffer(cardUrl); } catch (_) {}
+    // ─────────────────────────────────────────────────────────────────────────
 
     const issuePhotosArray = parsePhotoArray(issue_images);
 
@@ -476,8 +480,8 @@ exports.swapLaptop = asyncHandler(async (req, res) => {
         swappedBy:        staffName,
         swappedByEmail:   req.user?.email || '',
         extraCCs:         extra_ccs || [],
-        qrCodeBuffer:     qrBuffer,
-        qrCardUrl:        cardUrl,
+        qrCodeBuffer:     null,   // QR disabled
+        qrCardUrl:        '',     // QR disabled
         newAllocationId:  newAllocId,
         preparedBy:       staffName,
         issueImages:      issuePhotosArray,

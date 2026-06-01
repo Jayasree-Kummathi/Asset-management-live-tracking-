@@ -21,23 +21,17 @@ const createTransporter = () =>
   nodemailer.createTransport({
     host: process.env.MAIL_HOST || 'smtp.office365.com',
     port: Number(process.env.MAIL_PORT) || 587,
-
-    secure: false, // STARTTLS
+    secure: false,
     requireTLS: true,
-
     auth: {
       user: process.env.MAIL_USER,
       pass: process.env.MAIL_PASS,
     },
-
-    tls: {
-      rejectUnauthorized: false
-    },
-
+    tls: { rejectUnauthorized: false },
     connectionTimeout: 15000,
     greetingTimeout: 10000,
   });
-  
+
 const getFrom  = () => process.env.MAIL_FROM || `AssetOps <${process.env.MAIL_USER}>`;
 const sysEmail = () => (process.env.SYSADMIN_EMAIL || '').trim();
 
@@ -55,13 +49,11 @@ const validateEmail = (email) => {
 };
 
 const sendMail = async (options) => {
-
-  console.log('MAIL_HOST:', process.env.MAIL_HOST);
-  console.log('MAIL_USER:', process.env.MAIL_USER);
-  console.log('MAIL_PASS:', process.env.MAIL_PASS ? 'SET' : 'NOT SET');
-  console.log('MAIL_PASS length:', process.env.MAIL_PASS.length);
-console.log('MAIL_PASS raw:', JSON.stringify(process.env.MAIL_PASS));
-
+  // console.log('MAIL_HOST:', process.env.MAIL_HOST);
+  // console.log('MAIL_USER:', process.env.MAIL_USER);
+  // console.log('MAIL_PASS:', process.env.MAIL_PASS ? 'SET' : 'NOT SET');
+  // console.log('MAIL_PASS length:', process.env.MAIL_PASS.length);
+  // console.log('MAIL_PASS raw:', JSON.stringify(process.env.MAIL_PASS));
 
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
     console.log('📧 [Skipped — MAIL_USER/PASS not configured]');
@@ -139,28 +131,24 @@ const buildPhotoAttachments = (photos = [], prefix = 'photo') => {
   return { attachments, cids };
 };
 
-// ── Shared CSS ────────────────────────────────────────────────────────────────
-// Outlook-safe CSS:
-//   - NO display:flex (replaced with table layouts in HTML)
-//   - NO linear-gradient (replaced with solid fallback colors)
-//   - NO box-shadow (removed; Outlook ignores it)
-//   - NO ::after pseudo-elements (removed; not rendered in Outlook)
-//   - NO border-radius on <table> elements (Outlook ignores overflow:hidden on tables)
-//   - NO background shorthand with gradients on block elements
-//   - Kept: border-radius on <div> elements (supported via Outlook's own rendering)
-//   - Kept: all table/cell styles, font styles, colors, padding
+// ── Outlook-safe CSS ──────────────────────────────────────────────────────────
+// Rules:
+//   - NO display:flex  → replaced with <table> layouts everywhere
+//   - NO linear-gradient on block elements → solid bgcolor fallback on <td>
+//   - NO box-shadow → removed (Outlook ignores)
+//   - NO ::after pseudo → removed
+//   - NO border-radius on <table> → Outlook ignores overflow:hidden on tables
+//   - max-width on outer wrapper uses a wrapping 100%-wide table with a centred inner table
+//   - All widths capped at 660px via table width="660"
 const CSS = `
   *{box-sizing:border-box}
   body{margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:660px;margin:24px auto;background:#fff;border:1px solid #e2e8f0}
 
   /* ── Logo bar ── */
-  /* FIX: removed display:flex — logo bar uses a nested table in wrap() instead */
-  .logo-bar{background:#fff;padding:16px 32px;border-bottom:3px solid #1d5c3c}
+  .logo-bar{background:#fff;border-bottom:3px solid #1d5c3c}
   .logo-tagline{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
 
   /* ── Header banner ── */
-  /* FIX: removed linear-gradient (set as inline bgcolor on td in wrap()), removed ::after pseudo */
   .hdr{padding:28px 32px 24px}
   .hdr-icon{font-size:32px;margin-bottom:10px;display:block}
   .hdr-title{color:#fff;font-size:24px;font-weight:800;margin:0 0 4px}
@@ -177,7 +165,6 @@ const CSS = `
   .intro{font-size:14px;color:#475569;margin:0 0 24px;line-height:1.75}
 
   /* ── Section title ── */
-  /* FIX: removed ::after pseudo-element (decorative line after title) */
   .sec{margin-bottom:20px}
   .sec-title{font-size:10px;font-weight:800;color:#1d5c3c;text-transform:uppercase;
              letter-spacing:.1em;margin:0 0 10px;border-bottom:2px solid #d1fae5;padding-bottom:4px}
@@ -215,7 +202,6 @@ const CSS = `
   .badge-purple{background:#ede9fe;color:#5b21b6}
 
   /* ── Employee card ── */
-  /* FIX: emp-inner used display:flex — replaced with table layout in empCard() helper */
   .emp-row{padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:20px}
   .emp-avatar{width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #1d5c3c}
   .emp-avatar-placeholder{width:60px;height:60px;border-radius:50%;background:#1d5c3c;
@@ -223,16 +209,6 @@ const CSS = `
                            line-height:60px}
   .emp-info-name{font-size:16px;font-weight:700;color:#1e293b}
   .emp-info-sub{font-size:12px;color:#64748b;margin-top:2px}
-
-  /* ── QR section ── */
-  /* FIX: removed linear-gradient background — using solid fallback color */
-  .qr-section{text-align:center;padding:20px;background:#f0fdf4;
-              border:2px dashed #d1fae5;margin-bottom:20px}
-  .qr-section img{width:170px;height:170px;border:4px solid #1d3461;padding:5px;background:#fff}
-  .qr-label{font-size:13px;font-weight:700;color:#1e293b;margin-top:12px}
-  .qr-sub{font-size:12px;color:#64748b;margin-top:4px}
-  .qr-link{display:inline-block;margin-top:8px;font-size:11px;color:#1d5c3c;
-           text-decoration:underline;font-family:monospace;word-break:break-all}
 
   /* ── Photos grid ── */
   .photos-section{background:#fffbea;border:1px solid #fde68a;padding:14px 16px;margin-bottom:20px}
@@ -256,7 +232,7 @@ const CSS = `
 
   /* ── Status summary bar ── */
   .status-bar{width:100%;border-collapse:collapse;margin-bottom:20px}
-  .status-bar td{width:33%;padding:12px 6px;text-align:center;vertical-align:middle}
+  .status-bar td{width:33%;padding:4px}
   .status-item{background:#f8fafc;border:1px solid #e2e8f0;padding:12px;text-align:center}
   .status-item-label{font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:600;margin-bottom:4px}
   .status-item-val{font-size:15px;font-weight:800;color:#1e293b}
@@ -272,139 +248,254 @@ const CSS = `
 `;
 
 // ── Layout wrapper ─────────────────────────────────────────────────────────────
-// FIX: logo-bar now uses a nested <table> instead of flex.
-// FIX: .hdr background is set as a solid bgcolor on the wrapping <td> (Outlook reads bgcolor).
-//      The gradient is kept as a CSS background for modern clients via inline style;
-//      Outlook falls back to the bgcolor attribute automatically.
-// FIX: removed box-shadow from .wrap (unsupported).
-const wrap = (hdrColor, hdrBgColor, icon, title, sub, allocId, body, acceptLink = '') => {
+// Outlook-safe:
+//   - Outer 100%-wide table centres the 660px inner table (replaces max-width on a div)
+//   - bgcolor="" attribute on header <td> is the Outlook fallback for CSS gradient
+//   - Logo bar uses nested table (no flex)
+//   - No box-shadow on wrapper
+const wrap = (hdrCssGradient, hdrBgColor, icon, title, sub, allocId, body, acceptLink = '') => {
   const sys = sysEmail();
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${title}</title><style>${CSS}</style></head><body>
-<div class="wrap">
-  <table class="logo-bar" width="100%" cellpadding="0" cellspacing="0" border="0">
-    <tr>
-      <td style="vertical-align:middle;padding:16px 32px">
-        <img src="cid:${LOGO_CID}" alt="Logo" height="36" style="height:36px;width:auto;display:block"/>
-      </td>
-      <td style="vertical-align:middle;padding:16px 32px;text-align:right">
-        <span class="logo-tagline">IT Asset Management</span>
-      </td>
-    </tr>
-  </table>
-  <table width="100%" cellpadding="0" cellspacing="0" border="0">
-    <tr>
-      <td class="hdr" bgcolor="${hdrBgColor}" style="background:${hdrColor};padding:28px 32px 24px">
-        <span class="hdr-icon">${icon}</span>
-        <p class="hdr-title">${title}</p>
-        <p class="hdr-sub">${sub}</p>
-        ${allocId ? `<div class="alloc-badge">${allocId}</div>` : ''}
-      </td>
-    </tr>
-  </table>
-  <div class="body">
-    ${body}
-    ${acceptLink ? `
-    <div class="action-box">
-      <div class="action-box-title">&#9889; Action Required</div>
-      <div class="action-box-sub">Please confirm receipt of your laptop or report any damage within <strong>10 days</strong>.</div>
-      <a class="action-btn" href="${acceptLink}">&#10003; Confirm Receipt / Report Damage</a>
-      <div class="action-note">Link expires in 10 days &nbsp;&middot;&nbsp;
-        <a href="mailto:${sys}">Contact IT</a> for help</div>
-    </div>` : ''}
-  </div>
-  <div class="footer">
-    <div class="footer-brand">Mindteck IT Asset Management &mdash; AssetOps</div>
-    ${sys ? `<a href="mailto:${sys}">${sys}</a>` : ''}
-  </div>
-</div></body></html>`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <!--[if mso]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+  <title>${title}</title>
+  <style>${CSS}</style>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;">
+
+<!-- Outer wrapper table — centres content in all clients -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#f0f4f8;padding:24px 0;">
+  <tr>
+    <td align="center" valign="top">
+
+      <!-- Inner content table — fixed 660px, collapses on mobile -->
+      <table width="660" cellpadding="0" cellspacing="0" border="0"
+             style="width:660px;max-width:100%;background:#ffffff;border:1px solid #e2e8f0;"
+             class="wrap">
+
+        <!-- Logo bar -->
+        <tr>
+          <td style="background:#ffffff;border-bottom:3px solid #1d5c3c;padding:0;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:16px 32px;vertical-align:middle;">
+                  <img src="cid:${LOGO_CID}" alt="Logo" height="36"
+                       style="height:36px;width:auto;display:block;"/>
+                </td>
+                <td style="padding:16px 32px;vertical-align:middle;text-align:right;">
+                  <span style="font-size:10px;color:#94a3b8;text-transform:uppercase;
+                               letter-spacing:.1em;font-weight:600;">IT Asset Management</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Header banner -->
+        <tr>
+          <td bgcolor="${hdrBgColor}"
+              style="background:${hdrCssGradient};padding:28px 32px 24px;">
+            <span style="font-size:32px;margin-bottom:10px;display:block;">${icon}</span>
+            <p style="color:#fff;font-size:24px;font-weight:800;margin:0 0 4px;">${title}</p>
+            <p style="color:#d1fae5;font-size:13px;margin:0;">${sub}</p>
+            ${allocId
+              ? `<div style="display:inline-block;background:#2a6f52;border:1px solid #3a8f6a;
+                            color:#fff;font-family:monospace;font-size:13px;font-weight:700;
+                            padding:5px 14px;border-radius:20px;margin-top:12px;">${allocId}</div>`
+              : ''}
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:28px 32px;">
+            ${body}
+            ${acceptLink ? `
+            <div style="background:#f0fdf4;border:2px solid #16a34a;padding:20px 24px;
+                        margin:20px 0;text-align:center;">
+              <div style="font-size:15px;font-weight:800;color:#14532d;margin-bottom:6px;">
+                &#9889; Action Required
+              </div>
+              <div style="font-size:13px;color:#166534;margin-bottom:16px;line-height:1.6;">
+                Please confirm receipt of your laptop or report any damage within
+                <strong>10 days</strong>.
+              </div>
+              <a href="${acceptLink}"
+                 style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;
+                        padding:13px 36px;font-size:15px;font-weight:700;">
+                &#10003; Confirm Receipt / Report Damage
+              </a>
+              <div style="font-size:11px;color:#6b7280;margin-top:12px;">
+                Link expires in 10 days &nbsp;&middot;&nbsp;
+                <a href="mailto:${sys}" style="color:#1d5c3c;">${sys}</a> for help
+              </div>
+            </div>` : ''}
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8fafc;padding:16px 32px;font-size:12px;color:#94a3b8;
+                     text-align:center;border-top:1px solid #e2e8f0;">
+            <div style="font-weight:700;color:#475569;margin-bottom:4px;">
+              Mindteck IT Asset Management &mdash; AssetOps
+            </div>
+            ${sys ? `<a href="mailto:${sys}" style="color:#1d5c3c;text-decoration:none;">${sys}</a>` : ''}
+          </td>
+        </tr>
+
+      </table><!-- /inner 660px table -->
+
+    </td>
+  </tr>
+</table><!-- /outer wrapper -->
+
+</body>
+</html>`;
 };
 
 // ── Helper: employee card ─────────────────────────────────────────────────────
-// Already table-based — no change needed.
 const empCard = (name, id, dept, mobile, email, hasPhoto) =>
-`<div class="emp-row">
-  <table style="border-collapse:collapse;width:100%"><tr>
-    <td style="width:76px;vertical-align:middle;padding:0">
-      ${hasPhoto
-        ? `<img class="emp-avatar" src="cid:employee_photo" alt="${name}" width="60" height="60"/>`
-        : `<div class="emp-avatar-placeholder">${(name || '?')[0].toUpperCase()}</div>`
-      }
-    </td>
-    <td style="vertical-align:middle;padding:0 0 0 16px">
-      <div class="emp-info-name">${name}</div>
-      <div class="emp-info-sub">${[id, dept, mobile, email].filter(Boolean).join(' &middot; ')}</div>
-    </td>
-  </tr></table>
+`<div style="padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:20px;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr>
+      <td width="76" style="vertical-align:middle;padding:0;">
+        ${hasPhoto
+          ? `<img src="cid:employee_photo" alt="${name}" width="60" height="60"
+                  style="width:60px;height:60px;border-radius:50%;object-fit:cover;
+                         border:3px solid #1d5c3c;display:block;"/>`
+          : `<div style="width:60px;height:60px;border-radius:50%;background:#1d5c3c;
+                         color:#fff;font-size:22px;font-weight:700;text-align:center;
+                         line-height:60px;">${(name || '?')[0].toUpperCase()}</div>`
+        }
+      </td>
+      <td style="vertical-align:middle;padding:0 0 0 16px;">
+        <div style="font-size:16px;font-weight:700;color:#1e293b;">${name}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px;">
+          ${[id, dept, mobile, email].filter(Boolean).join(' &middot; ')}
+        </div>
+      </td>
+    </tr>
+  </table>
 </div>`;
 
 // ── Helper: photo grid section ────────────────────────────────────────────────
 const photoGrid = (cids, label, warning = '') => {
   if (!cids.length) return '';
-  const imgs = cids.map(cid => `<img src="cid:${cid}" alt="${label}" width="120" height="90"/>`).join('');
-  return `<div class="photos-section">
-    <div class="photos-label">&#128247; ${label}</div>
-    ${warning ? `<div style="font-size:12px;color:#92400e;margin-bottom:8px">${warning}</div>` : ''}
-    <div class="photos-grid">${imgs}</div>
+  const imgs = cids.map(cid =>
+    `<img src="cid:${cid}" alt="${label}" width="120" height="90"
+          style="width:120px;height:90px;object-fit:cover;border:2px solid #e2e8f0;
+                 display:inline-block;margin:0 4px 4px 0;"/>`
+  ).join('');
+  return `<div style="background:#fffbea;border:1px solid #fde68a;padding:14px 16px;margin-bottom:20px;">
+    <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;margin-bottom:10px;">
+      &#128247; ${label}
+    </div>
+    ${warning ? `<div style="font-size:12px;color:#92400e;margin-bottom:8px;">${warning}</div>` : ''}
+    <div>${imgs}</div>
   </div>`;
 };
 
-// ── Helper: QR section ────────────────────────────────────────────────────────
-const qrSection = (qrUrl) =>
-`<div class="qr-section">
-  <img src="cid:asset_qr" alt="Asset QR Code" width="170" height="170"/>
-  <div class="qr-label">Scan to view your asset details</div>
-  <div class="qr-sub">Shows laptop info, serial number &amp; allocation details</div>
-  ${qrUrl ? `<a class="qr-link" href="${qrUrl}">${qrUrl}</a>` : ''}
-</div>`;
-
 // ── Swap comparison table ─────────────────────────────────────────────────────
-// Already table-based — no change needed.
 const swapCompareTable = (p) =>
-`<table class="cmp-outer"><tr>
-  <td>
-    <table class="cmp-card">
-      <tr><td><div class="cmp-hdr" style="background:#fee2e2;color:#991b1b">&#8617; Returned Laptop</div></td></tr>
-      <tr><td><div class="cmp-row"><div class="cmp-label">Asset No</div><div class="cmp-val mono" style="color:#dc2626">${p.oldAssetId}</div></div></td></tr>
-      <tr><td><div class="cmp-row"><div class="cmp-label">Brand / Model</div><div class="cmp-val">${p.oldBrand} ${p.oldModel}</div></div></td></tr>
-      <tr><td><div class="cmp-row"><div class="cmp-label">Serial</div><div class="cmp-val mono">${p.oldSerial || '&mdash;'}</div></div></td></tr>
-    </table>
-  </td>
-  <td>
-    <table class="cmp-card">
-      <tr><td><div class="cmp-hdr" style="background:#d1fae5;color:#065f46">&#10003; New Laptop Issued</div></td></tr>
-      <tr><td><div class="cmp-row"><div class="cmp-label">Asset No</div><div class="cmp-val mono" style="color:#059669">${p.newAssetId}</div></div></td></tr>
-      <tr><td><div class="cmp-row"><div class="cmp-label">Brand / Model</div><div class="cmp-val">${p.newBrand} ${p.newModel}</div></div></td></tr>
-      <tr><td><div class="cmp-row"><div class="cmp-label">Serial</div><div class="cmp-val mono">${p.newSerial || '&mdash;'}</div></div></td></tr>
-    </table>
-  </td>
-</tr></table>`;
+`<table cellpadding="0" cellspacing="0" border="0" width="100%"
+       style="border-collapse:collapse;width:100%;">
+  <tr>
+    <td width="50%" style="vertical-align:top;padding-right:6px;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%"
+             style="border:1px solid #e2e8f0;border-collapse:collapse;width:100%;">
+        <tr>
+          <td style="background:#fee2e2;padding:10px 14px;font-size:11px;
+                     font-weight:800;text-transform:uppercase;color:#991b1b;">
+            &#8617; Returned Laptop
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">
+            <div style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Asset No</div>
+            <div style="color:#dc2626;font-weight:700;font-family:monospace;font-size:13px;">${p.oldAssetId}</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">
+            <div style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Brand / Model</div>
+            <div style="color:#1e293b;font-weight:700;font-size:13px;">${p.oldBrand} ${p.oldModel}</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;">
+            <div style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Serial</div>
+            <div style="color:#1d3461;font-weight:700;font-family:monospace;font-size:13px;">${p.oldSerial || '&mdash;'}</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+    <td width="50%" style="vertical-align:top;padding-left:6px;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%"
+             style="border:1px solid #e2e8f0;border-collapse:collapse;width:100%;">
+        <tr>
+          <td style="background:#d1fae5;padding:10px 14px;font-size:11px;
+                     font-weight:800;text-transform:uppercase;color:#065f46;">
+            &#10003; New Laptop Issued
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">
+            <div style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Asset No</div>
+            <div style="color:#059669;font-weight:700;font-family:monospace;font-size:13px;">${p.newAssetId}</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;">
+            <div style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Brand / Model</div>
+            <div style="color:#1e293b;font-weight:700;font-size:13px;">${p.newBrand} ${p.newModel}</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;">
+            <div style="font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-bottom:2px;">Serial</div>
+            <div style="color:#1d3461;font-weight:700;font-family:monospace;font-size:13px;">${p.newSerial || '&mdash;'}</div>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>`;
 
 // ── Status summary bar ────────────────────────────────────────────────────────
+// Each item: { label, value }
+// Rendered as a 3-column table — no flex, safe in Outlook
 const statusBar = (items) =>
-`<table class="status-bar"><tr>
-  ${items.map(item => `
-  <td>
-    <div class="status-item">
-      <div class="status-item-label">${item.label}</div>
-      <div class="status-item-val">${item.value}</div>
-    </div>
-  </td>`).join('')}
-</tr></table>`;
+`<table cellpadding="0" cellspacing="0" border="0" width="100%"
+       style="border-collapse:collapse;width:100%;margin-bottom:20px;">
+  <tr>
+    ${items.map(item => `
+    <td style="width:33%;padding:4px;vertical-align:top;">
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;text-align:center;">
+        <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;
+                    font-weight:600;margin-bottom:4px;">${item.label}</div>
+        <div style="font-size:15px;font-weight:800;color:#1e293b;">${item.value}</div>
+      </div>
+    </td>`).join('')}
+  </tr>
+</table>`;
 
-// ── Gradient → solid color map (used by all email senders) ───────────────────
-// Outlook reads the bgcolor="" attribute on <td> as fallback when CSS gradient fails.
-// Each entry: [ cssGradient, outlookSolidFallback ]
+// ── Header colour map ─────────────────────────────────────────────────────────
+// [ cssGradient ,  outlookSolidBgColor ]
+// Outlook reads bgcolor="" attribute on the <td>; modern clients get the CSS gradient.
 const HDR = {
-  allocate: ['linear-gradient(135deg,#1d3461,#1d5c3c)', '#1d3461'],
-  receive:  ['linear-gradient(135deg,#059669,#047857)', '#059669'],
-  swap:     ['linear-gradient(135deg,#7c3aed,#5b21b6)', '#7c3aed'],
-  accessory:['linear-gradient(135deg,#d97706,#b45309)', '#d97706'],
-  welcome:  ['linear-gradient(135deg,#0f172a,#1d3461)', '#0f172a'],
-  reminder: ['linear-gradient(135deg,#d97706,#b45309)', '#d97706'],
-  blue:     ['linear-gradient(135deg,#2563eb,#1d4ed8)', '#2563eb'],
-  green:    ['linear-gradient(135deg,#059669,#047857)', '#059669'],
+  allocate:  ['linear-gradient(135deg,#1d3461,#1d5c3c)', '#1d3461'],
+  receive:   ['linear-gradient(135deg,#16a34a,#15803d)',  '#16a34a'],  // light green
+  swap:      ['linear-gradient(135deg,#7c3aed,#5b21b6)',  '#7c3aed'],
+  accessory: ['linear-gradient(135deg,#d97706,#b45309)',  '#d97706'],
+  welcome:   ['linear-gradient(135deg,#0f172a,#1d3461)',  '#0f172a'],
+  reminder:  ['linear-gradient(135deg,#d97706,#b45309)',  '#d97706'],
+  blue:      ['linear-gradient(135deg,#2563eb,#1d4ed8)',  '#2563eb'],
+  green:     ['linear-gradient(135deg,#059669,#047857)',  '#059669'],
 };
 
 
@@ -465,8 +556,6 @@ exports.sendAllocationEmail = async (p) => {
       by <strong>${deadlineStr}</strong>.
     </p>
 
-    ${p.qrCodeBuffer ? qrSection(p.qrCardUrl || '') : ''}
-
     <div class="sec">
       <div class="sec-title">&#128187; Laptop Details</div>
       <table class="tbl">
@@ -488,7 +577,9 @@ exports.sendAllocationEmail = async (p) => {
         <tr><th>Prepared By</th><td>${p.preparedBy || p.allocatedBy || '&mdash;'}</td></tr>
         <tr><th>Delivery Method</th><td>
           ${p.deliveryMethod === 'courier'
-            ? `<span class="badge badge-blue">Courier</span>${p.deliveryAddress ? `<div style="margin-top:4px;font-size:12px;color:#475569">${p.deliveryAddress}</div>` : ''}`
+            ? `<span class="badge badge-blue">Courier</span>${p.deliveryAddress
+                ? `<div style="margin-top:4px;font-size:12px;color:#475569;">${p.deliveryAddress}</div>`
+                : ''}`
             : `<span class="badge badge-green">Hand Delivery</span>`
           }
         </td></tr>
@@ -523,9 +614,7 @@ exports.sendAllocationEmail = async (p) => {
       contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
   }
-  if (p.qrCodeBuffer) {
-    attachments.push({ filename: 'asset_qr.png', content: p.qrCodeBuffer, cid: 'asset_qr', contentType: 'image/png' });
-  }
+  // QR attachment removed — p.qrCodeBuffer is always null now
 
   await sendMail({
     to:          toList.join(', '),
@@ -538,7 +627,7 @@ exports.sendAllocationEmail = async (p) => {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 2. RECEIVE / RETURN EMAIL
+// 2. RECEIVE / RETURN EMAIL  — light green background
 // ═══════════════════════════════════════════════════════════════════════════════
 exports.sendReceiveEmail = async (p) => {
   validateEmail(p.empEmail);
@@ -559,60 +648,92 @@ exports.sendReceiveEmail = async (p) => {
                   : p.newStatus === 'Repair' ? 'badge-amber'
                   :                            'badge-red';
 
-  const body = `
-    <p class="greeting">Dear ${p.empName},</p>
-    <p class="intro">
-      Your laptop has been successfully returned and processed by the IT team.
-      Please find the complete return summary below.
-    </p>
+  // ── Light green body background wrapper ──────────────────────────────────
+  // Wraps the whole email body area in #f0fdf4 (Tailwind green-50)
+  // Uses an inner table so it works in Outlook without display:block tricks
+  const receiveBody = `
+    <!-- Light green body background -->
+    <table cellpadding="0" cellspacing="0" border="0" width="100%"
+           style="border-collapse:collapse;width:100%;background:#f0fdf4;
+                  border:1px solid #bbf7d0;border-radius:6px;margin-bottom:0;">
+      <tr>
+        <td style="padding:24px;">
 
-    ${statusBar([
-      { label: 'Return Date', value: `<span style="font-size:13px">${p.returnDate}</span>` },
-      { label: 'Condition',   value: `<span class="badge ${condBadge}" style="font-size:11px">${condLabel}</span>` },
-      { label: 'Asset Status',value: `<span class="badge ${stsBadge}" style="font-size:11px">${p.newStatus}</span>` },
-    ])}
+          <p style="font-size:17px;color:#1e293b;margin:0 0 6px;font-weight:700;">
+            Dear ${p.empName},
+          </p>
+          <p style="font-size:14px;color:#475569;margin:0 0 20px;line-height:1.75;">
+            Your laptop has been successfully returned and processed by the IT team.
+            Please find the complete return summary below.
+          </p>
 
-    <div class="sec">
-      <div class="sec-title">&#128100; Employee</div>
-      <table class="tbl">
-        <tr><th>Full Name</th><td>${p.empName}</td></tr>
-        <tr><th>Employee ID</th><td>${p.empId || '&mdash;'}</td></tr>
-        <tr><th>Department</th><td>${p.department || '&mdash;'}</td></tr>
-        <tr><th>Mobile</th><td>${p.mobileNo || '&mdash;'}</td></tr>
-      </table>
-    </div>
+          ${statusBar([
+            { label: 'Return Date', value: `<span style="font-size:13px;">${p.returnDate}</span>` },
+            { label: 'Condition',   value: `<span class="badge ${condBadge}" style="font-size:11px;">${condLabel}</span>` },
+            { label: 'Asset Status',value: `<span class="badge ${stsBadge}"  style="font-size:11px;">${p.newStatus}</span>` },
+          ])}
 
-    <div class="sec">
-      <div class="sec-title">&#128187; Returned Laptop</div>
-      <table class="tbl">
-        <tr><th>Asset Number</th><td class="mono">${p.assetId}</td></tr>
-        <tr><th>Brand / Model</th><td>${p.brand || ''} ${p.model || ''}</td></tr>
-        <tr><th>Serial Number</th><td class="mono">${p.serial || '&mdash;'}</td></tr>
-        <tr><th>Processed By</th><td>${p.receivedBy}</td></tr>
-      </table>
-    </div>
+          <!-- Employee -->
+          <div style="margin-bottom:20px;">
+            <div style="font-size:10px;font-weight:800;color:#15803d;text-transform:uppercase;
+                        letter-spacing:.1em;margin:0 0 10px;border-bottom:2px solid #86efac;
+                        padding-bottom:4px;">
+              &#128100; Employee
+            </div>
+            <table class="tbl" width="100%" cellpadding="0" cellspacing="0">
+              <tr><th>Full Name</th>   <td>${p.empName}</td></tr>
+              <tr><th>Employee ID</th> <td>${p.empId || '&mdash;'}</td></tr>
+              <tr><th>Department</th>  <td>${p.department || '&mdash;'}</td></tr>
+              <tr><th>Mobile</th>      <td>${p.mobileNo || '&mdash;'}</td></tr>
+            </table>
+          </div>
 
-    ${p.damageDescription ? `
-    <div class="sec">
-      <div class="sec-title">&#9888;&#65039; Damage / Issue Notes</div>
-      <div style="background:#fff7ed;border:1px solid #fed7aa;padding:14px 18px;font-size:14px;color:#7c2d12;line-height:1.8">
-        ${p.damageDescription}
-      </div>
-    </div>` : ''}
+          <!-- Returned Laptop -->
+          <div style="margin-bottom:20px;">
+            <div style="font-size:10px;font-weight:800;color:#15803d;text-transform:uppercase;
+                        letter-spacing:.1em;margin:0 0 10px;border-bottom:2px solid #86efac;
+                        padding-bottom:4px;">
+              &#128187; Returned Laptop
+            </div>
+            <table class="tbl" width="100%" cellpadding="0" cellspacing="0">
+              <tr><th>Asset Number</th>  <td class="mono">${p.assetId}</td></tr>
+              <tr><th>Brand / Model</th> <td>${p.brand || ''} ${p.model || ''}</td></tr>
+              <tr><th>Serial Number</th> <td class="mono">${p.serial || '&mdash;'}</td></tr>
+              <tr><th>Processed By</th>  <td>${p.receivedBy}</td></tr>
+            </table>
+          </div>
 
-    ${retCids.length ? photoGrid(retCids, 'Laptop Condition at Return') : ''}
+          ${p.damageDescription ? `
+          <div style="margin-bottom:20px;">
+            <div style="font-size:10px;font-weight:800;color:#15803d;text-transform:uppercase;
+                        letter-spacing:.1em;margin:0 0 10px;border-bottom:2px solid #86efac;
+                        padding-bottom:4px;">
+              &#9888;&#65039; Damage / Issue Notes
+            </div>
+            <div style="background:#fff7ed;border:1px solid #fed7aa;padding:14px 18px;
+                        font-size:14px;color:#7c2d12;line-height:1.8;">
+              ${p.damageDescription}
+            </div>
+          </div>` : ''}
 
-    <div class="notice">
-      This email confirms the successful return of the above laptop.
-      Please retain it for your records. For any discrepancies contact
-      <a href="mailto:${sysEmail()}">${sysEmail()}</a>.
-    </div>`;
+          ${retCids.length ? photoGrid(retCids, 'Laptop Condition at Return') : ''}
+
+          <div style="background:#dcfce7;border-left:4px solid #16a34a;padding:14px 18px;
+                      font-size:13px;color:#14532d;line-height:1.8;">
+            This email confirms the successful return of the above laptop.
+            Please retain it for your records. For any discrepancies contact
+            <a href="mailto:${sysEmail()}" style="color:#15803d;">${sysEmail()}</a>.
+          </div>
+
+        </td>
+      </tr>
+    </table>`;
 
   await sendMail({
     to:          p.empEmail,
     cc:          cc.join(', '),
     subject:     `[AssetOps] Laptop Returned — ${p.assetId} | ${p.empName}`,
-    html:        wrap(...HDR.receive, '&#128229;', 'Laptop Returned', 'AssetOps · Mindteck IT', '', body),
+    html:        wrap(...HDR.receive, '&#128229;', 'Laptop Returned', 'AssetOps · Mindteck IT', '', receiveBody),
     attachments: [...getLogoAttachment(), ...retAtts],
   });
 };
@@ -637,27 +758,25 @@ exports.sendSwapEmail = async (p) => {
 
     <p class="greeting">Dear ${p.empName},</p>
     <p class="intro">
-      Your laptop has been swapped by the IT team. The details of both the returned and newly issued
-      laptops are shown below.
+      Your laptop has been swapped by the IT team. The details of both the returned and newly
+      issued laptops are shown below.
     </p>
-
-    ${p.qrCodeBuffer ? qrSection(p.qrCardUrl || '') : ''}
 
     <div class="sec">
       <div class="sec-title">&#128260; Swap Summary</div>
       ${swapCompareTable(p)}
     </div>
 
-    <div class="sec" style="margin-top:16px">
+    <div class="sec" style="margin-top:16px;">
       <div class="sec-title">&#128203; Swap Details</div>
       <table class="tbl">
-        <tr><th>New Config</th><td>${p.newConfig || '&mdash;'}</td></tr>
-        <tr><th>Swap Reason</th><td>${p.issueType || '&mdash;'}</td></tr>
-        <tr><th>Description</th><td>${p.issueDescription || '&mdash;'}</td></tr>
-        <tr><th>Swap Date</th><td>${p.swapDate}</td></tr>
-        <tr><th>Processed By</th><td>${p.swappedBy}</td></tr>
+        <tr><th>New Config</th>    <td>${p.newConfig || '&mdash;'}</td></tr>
+        <tr><th>Swap Reason</th>   <td>${p.issueType || '&mdash;'}</td></tr>
+        <tr><th>Description</th>   <td>${p.issueDescription || '&mdash;'}</td></tr>
+        <tr><th>Swap Date</th>     <td>${p.swapDate}</td></tr>
+        <tr><th>Processed By</th>  <td>${p.swappedBy}</td></tr>
         ${p.preparedBy ? `<tr><th>Prepared By</th><td>${p.preparedBy}</td></tr>` : ''}
-        <tr><th>Project</th><td>${p.project || '&mdash;'}</td></tr>
+        <tr><th>Project</th>       <td>${p.project || '&mdash;'}</td></tr>
       </table>
     </div>
 
@@ -668,10 +787,8 @@ exports.sendSwapEmail = async (p) => {
       <a href="mailto:${sysEmail()}">${sysEmail()}</a>.
     </div>`;
 
+  // QR attachment removed — p.qrCodeBuffer is always null now
   const attachments = [...getLogoAttachment(), ...photoAtts, ...issueAtts];
-  if (p.qrCodeBuffer) {
-    attachments.push({ filename: 'new_asset_qr.png', content: p.qrCodeBuffer, cid: 'asset_qr', contentType: 'image/png' });
-  }
 
   await sendMail({
     to:          p.empEmail,
@@ -700,11 +817,11 @@ exports.sendAccessoryRequestEmail = async (p) => {
     <div class="sec">
       <div class="sec-title">&#128100; Employee</div>
       <table class="tbl">
-        <tr><th>Name</th><td>${p.empName}</td></tr>
-        <tr><th>Employee ID</th><td>${p.empId || '&mdash;'}</td></tr>
-        <tr><th>Department</th><td>${p.department || '&mdash;'}</td></tr>
-        <tr><th>Mobile</th><td>${p.mobileNo || '&mdash;'}</td></tr>
-        <tr><th>Project</th><td>${p.project || '&mdash;'}</td></tr>
+        <tr><th>Name</th>         <td>${p.empName}</td></tr>
+        <tr><th>Employee ID</th>  <td>${p.empId || '&mdash;'}</td></tr>
+        <tr><th>Department</th>   <td>${p.department || '&mdash;'}</td></tr>
+        <tr><th>Mobile</th>       <td>${p.mobileNo || '&mdash;'}</td></tr>
+        <tr><th>Project</th>      <td>${p.project || '&mdash;'}</td></tr>
         ${p.assetId ? `<tr><th>Current Asset</th><td class="mono">${p.assetId}</td></tr>` : ''}
       </table>
     </div>
@@ -717,17 +834,16 @@ exports.sendAccessoryRequestEmail = async (p) => {
     ${p.reason ? `
     <div class="sec">
       <div class="sec-title">&#128221; Reason</div>
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 18px;font-size:14px;color:#14532d;line-height:1.8">
-        ${p.reason}
-      </div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 18px;
+                  font-size:14px;color:#14532d;line-height:1.8;">${p.reason}</div>
     </div>` : ''}
 
     <div class="sec">
       <div class="sec-title">&#8505;&#65039; Request Info</div>
       <table class="tbl">
-        <tr><th>Date</th><td>${new Date().toLocaleDateString('en-IN')}</td></tr>
-        <tr><th>Raised By</th><td>${p.requestedBy}</td></tr>
-        <tr><th>Status</th><td><span class="badge badge-amber">Pending Approval</span></td></tr>
+        <tr><th>Date</th>       <td>${new Date().toLocaleDateString('en-IN')}</td></tr>
+        <tr><th>Raised By</th>  <td>${p.requestedBy}</td></tr>
+        <tr><th>Status</th>     <td><span class="badge badge-amber">Pending Approval</span></td></tr>
       </table>
     </div>`;
 
@@ -754,10 +870,10 @@ exports.sendWelcomeEmail = async (p) => {
     <div class="sec">
       <div class="sec-title">&#128273; Login Credentials</div>
       <table class="tbl">
-        <tr><th>Login URL</th><td><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}">${process.env.FRONTEND_URL || 'http://localhost:3000'}</a></td></tr>
-        <tr><th>Email</th><td>${p.email}</td></tr>
-        <tr><th>Password</th><td class="mono" style="font-size:16px">${p.password}</td></tr>
-        <tr><th>Role</th><td><span class="badge badge-green">${p.role === 'it_staff' ? 'IT Staff' : p.role}</span></td></tr>
+        <tr><th>Login URL</th>  <td><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}">${process.env.FRONTEND_URL || 'http://localhost:3000'}</a></td></tr>
+        <tr><th>Email</th>      <td>${p.email}</td></tr>
+        <tr><th>Password</th>   <td class="mono" style="font-size:16px;">${p.password}</td></tr>
+        <tr><th>Role</th>       <td><span class="badge badge-green">${p.role === 'it_staff' ? 'IT Staff' : p.role}</span></td></tr>
       </table>
     </div>
 
@@ -795,19 +911,20 @@ exports.sendAccessoryAllocatedEmail = async (p) => {
     <div class="sec">
       <div class="sec-title">&#128203; Allocation Info</div>
       <table class="tbl">
-        <tr><th>Employee</th><td>${p.empName} (${p.empId || '&mdash;'})</td></tr>
-        <tr><th>Department</th><td>${p.department || '&mdash;'}</td></tr>
+        <tr><th>Employee</th>    <td>${p.empName} (${p.empId || '&mdash;'})</td></tr>
+        <tr><th>Department</th>  <td>${p.department || '&mdash;'}</td></tr>
         ${p.assetId && p.assetId !== '—' ? `<tr><th>Linked Asset</th><td class="mono">${p.assetId}</td></tr>` : ''}
-        <tr><th>Date</th><td>${new Date().toLocaleDateString('en-IN')}</td></tr>
+        <tr><th>Date</th>        <td>${new Date().toLocaleDateString('en-IN')}</td></tr>
         <tr><th>Allocated By</th><td>${p.allocatedBy}</td></tr>
-        <tr><th>Status</th><td><span class="badge badge-green">Allocated &#10003;</span></td></tr>
+        <tr><th>Status</th>      <td><span class="badge badge-green">Allocated &#10003;</span></td></tr>
       </table>
     </div>
 
     ${p.notes ? `
     <div class="sec">
       <div class="sec-title">&#128221; Notes</div>
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 18px;font-size:14px;color:#14532d;line-height:1.8">${p.notes}</div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px 18px;
+                  font-size:14px;color:#14532d;line-height:1.8;">${p.notes}</div>
     </div>` : ''}
 
     <div class="notice">
@@ -840,13 +957,13 @@ exports.sendAccessoryReceivedEmail = async (p) => {
     <div class="sec">
       <div class="sec-title">&#9989; Item Received</div>
       <table class="tbl">
-        <tr><th>Item Name</th><td>${p.itemName}</td></tr>
-        <tr><th>Quantity</th><td>${p.quantity || 1} unit(s)</td></tr>
+        <tr><th>Item Name</th>    <td>${p.itemName}</td></tr>
+        <tr><th>Quantity</th>     <td>${p.quantity || 1} unit(s)</td></tr>
         ${p.assetId && p.assetId !== '—' ? `<tr><th>Linked Asset</th><td class="mono">${p.assetId}</td></tr>` : ''}
-        <tr><th>Employee</th><td>${p.empName} (${p.empId || '&mdash;'})</td></tr>
+        <tr><th>Employee</th>     <td>${p.empName} (${p.empId || '&mdash;'})</td></tr>
         <tr><th>Received Date</th><td>${new Date().toLocaleDateString('en-IN')}</td></tr>
-        <tr><th>Confirmed By</th><td>${p.receivedBy}</td></tr>
-        <tr><th>Status</th><td><span class="badge badge-green">Received &#10003;</span></td></tr>
+        <tr><th>Confirmed By</th> <td>${p.receivedBy}</td></tr>
+        <tr><th>Status</th>       <td><span class="badge badge-green">Received &#10003;</span></td></tr>
       </table>
     </div>
 
@@ -884,12 +1001,14 @@ exports.sendAcceptanceReminderEmail = async (p) => {
     <p class="intro">
       This is a <strong>${urgencyLabel}</strong> &mdash; you have not yet confirmed receipt of the
       laptop allocated to you.
-      ${p.daysOverdue > 0 ? `Your acceptance was due <strong style="color:${urgencyColor}">${p.daysOverdue} day(s) ago</strong>.` : ''}
+      ${p.daysOverdue > 0
+        ? `Your acceptance was due <strong style="color:${urgencyColor};">${p.daysOverdue} day(s) ago</strong>.`
+        : ''}
     </p>
 
-    <div style="background:#fef3c7;border:2px solid #f59e0b;padding:18px 22px;margin-bottom:20px">
-      <div style="font-size:14px;font-weight:800;color:#92400e;margin-bottom:8px">&#9200; Action Required</div>
-      <div style="font-size:13px;color:#78350f;line-height:1.75">
+    <div style="background:#fef3c7;border:2px solid #f59e0b;padding:18px 22px;margin-bottom:20px;">
+      <div style="font-size:14px;font-weight:800;color:#92400e;margin-bottom:8px;">&#9200; Action Required</div>
+      <div style="font-size:13px;color:#78350f;line-height:1.75;">
         Please confirm receipt or report any damage immediately.<br/>
         If you have already returned the laptop, contact IT right away.
       </div>
@@ -898,9 +1017,9 @@ exports.sendAcceptanceReminderEmail = async (p) => {
     <div class="sec">
       <div class="sec-title">&#128187; Laptop on Record</div>
       <table class="tbl">
-        <tr><th>Asset Number</th><td class="mono">${p.assetId}</td></tr>
-        <tr><th>Brand / Model</th><td>${p.brand || ''} ${p.model || ''}</td></tr>
-        <tr><th>Serial Number</th><td class="mono">${p.serial || '&mdash;'}</td></tr>
+        <tr><th>Asset Number</th>   <td class="mono">${p.assetId}</td></tr>
+        <tr><th>Brand / Model</th>  <td>${p.brand || ''} ${p.model || ''}</td></tr>
+        <tr><th>Serial Number</th>  <td class="mono">${p.serial || '&mdash;'}</td></tr>
         <tr><th>Allocation Date</th><td>${p.allocationDate || '&mdash;'}</td></tr>
       </table>
     </div>
@@ -919,6 +1038,9 @@ exports.sendAcceptanceReminderEmail = async (p) => {
 };
 
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// 9. AUDIT EMAIL
+// ═══════════════════════════════════════════════════════════════════════════════
 exports.sendAuditEmail = async ({
   empName, empEmail, empId, department,
   assetId, brand, model, config, serial, processor, ram, storage,
@@ -955,23 +1077,29 @@ exports.sendAuditEmail = async ({
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <!--[if mso]><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
   <title>Asset Audit Confirmation</title>
 </head>
 <body style="margin:0;padding:0;background:#f0f4f9;font-family:'Segoe UI',Arial,sans-serif;">
 
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f9;padding:36px 0;">
+<!-- Outer centering table -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#f0f4f9;padding:36px 0;">
   <tr>
-    <td align="center">
-      <table width="620" cellpadding="0" cellspacing="0"
-             style="background:#ffffff;border-radius:14px;overflow:hidden;
-                    box-shadow:0 4px 20px rgba(0,0,0,.09);">
+    <td align="center" valign="top">
+
+      <!-- Inner 620px content table -->
+      <table width="620" cellpadding="0" cellspacing="0" border="0"
+             style="width:620px;max-width:100%;background:#ffffff;border:1px solid #dde8ff;">
 
         <!-- Header -->
         <tr>
-          <td bgcolor="#1a56db" style="background:linear-gradient(135deg,#1a56db 0%,#4f8ef7 100%);padding:30px 36px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
+          <td bgcolor="#1a56db"
+              style="background:linear-gradient(135deg,#1a56db 0%,#4f8ef7 100%);
+                     padding:30px 36px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td>
+                <td style="vertical-align:top;">
                   <div style="font-size:10.5px;font-weight:700;color:rgba(255,255,255,.65);
                               text-transform:uppercase;letter-spacing:2.5px;margin-bottom:8px;">
                     IT Asset Management &middot; Periodic Audit
@@ -983,9 +1111,10 @@ exports.sendAuditEmail = async ({
                     Asset ID: <strong style="color:#fff;">${assetId}</strong>
                   </div>
                 </td>
-                <td align="right" valign="top">
-                  <div style="background:rgba(255,255,255,.18);border-radius:10px;
-                              padding:9px 16px;font-size:22px;">&#128203;</div>
+                <td align="right" valign="top" style="padding-left:16px;">
+                  <div style="background:rgba(255,255,255,.18);padding:9px 16px;font-size:22px;">
+                    &#128203;
+                  </div>
                 </td>
               </tr>
             </table>
@@ -995,7 +1124,8 @@ exports.sendAuditEmail = async ({
         <!-- Logo bar -->
         <tr>
           <td style="padding:14px 36px;border-bottom:1px solid #eef2f7;background:#fff;">
-            <img src="cid:${LOGO_CID}" alt="Logo" height="32" style="height:32px;width:auto;display:block"/>
+            <img src="cid:${LOGO_CID}" alt="Logo" height="32"
+                 style="height:32px;width:auto;display:block;"/>
           </td>
         </tr>
 
@@ -1020,13 +1150,14 @@ exports.sendAuditEmail = async ({
         <!-- Asset Details -->
         <tr>
           <td style="padding:22px 36px 0;">
-            <div style="border:1px solid #dde8ff;border-radius:10px;overflow:hidden;">
-              <div style="background:#e8f0fe;padding:11px 18px;
-                          font-size:10.5px;font-weight:700;color:#1a56db;
-                          text-transform:uppercase;letter-spacing:1.5px;">
+            <div style="border:1px solid #dde8ff;">
+              <div style="background:#e8f0fe;padding:11px 18px;font-size:10.5px;
+                          font-weight:700;color:#1a56db;text-transform:uppercase;
+                          letter-spacing:1.5px;">
                 &#128187; &nbsp;Allocated Asset Details
               </div>
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8faff;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                     style="background:#f8faff;">
                 ${row('Asset ID',        assetId,                     true)}
                 ${row('Brand / Model',   `${brand || ''} ${model || ''}`)}
                 ${row('Serial Number',   serial,                      true)}
@@ -1046,10 +1177,10 @@ exports.sendAuditEmail = async ({
         <!-- Accessories -->
         <tr>
           <td style="padding:16px 36px 0;">
-            <div style="border:1px solid #dde8ff;border-radius:10px;overflow:hidden;">
-              <div style="background:#e8f0fe;padding:11px 18px;
-                          font-size:10.5px;font-weight:700;color:#1a56db;
-                          text-transform:uppercase;letter-spacing:1.5px;">
+            <div style="border:1px solid #dde8ff;">
+              <div style="background:#e8f0fe;padding:11px 18px;font-size:10.5px;
+                          font-weight:700;color:#1a56db;text-transform:uppercase;
+                          letter-spacing:1.5px;">
                 &#128230; &nbsp;Accessories
               </div>
               <div style="background:#f8faff;padding:4px 0;">
@@ -1096,7 +1227,11 @@ exports.sendAuditEmail = async ({
         </tr>
 
         <!-- Divider -->
-        <tr><td style="padding:24px 36px 0;"><hr style="border:none;border-top:1px solid #eef2f7;margin:0;"/></td></tr>
+        <tr>
+          <td style="padding:24px 36px 0;">
+            <hr style="border:none;border-top:1px solid #eef2f7;margin:0;"/>
+          </td>
+        </tr>
 
         <!-- Footer -->
         <tr>
@@ -1117,20 +1252,21 @@ exports.sendAuditEmail = async ({
           </td>
         </tr>
 
-      </table>
+      </table><!-- /inner 620px table -->
+
     </td>
   </tr>
-</table>
+</table><!-- /outer wrapper -->
+
 </body>
 </html>`;
 
-  // ── Use the shared sendMail() wrapper (same as all other functions) ──────────
   await sendMail({
     to:          empEmail,
     replyTo:     itEmail || sysEmail() || process.env.MAIL_USER,
     subject:     `[AssetOps] Asset Audit — Please confirm your laptop | ${assetId}`,
     html,
-    attachments: getLogoAttachment(),  // includes the Mindteck logo cid
+    attachments: getLogoAttachment(),
   });
 
   console.log(`📧 Audit email sent → ${empEmail} for asset ${assetId}`);

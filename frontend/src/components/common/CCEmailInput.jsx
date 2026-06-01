@@ -52,7 +52,7 @@ export default function CCEmailInput({ ccEmails, onChange }) {
           fontSize: 12.5, color: 'var(--accent)',
         }}>
           <Mail size={11} />
-          sysadmin@mindteck.us
+          sysadmin@mindteck.com
           <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 2 }}>(auto)</span>
         </div>
 
