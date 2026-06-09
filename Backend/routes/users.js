@@ -4,7 +4,7 @@ const { getUsers, createUser, updateUser, deleteUser, resetPassword } = require(
 const { protect, authorize } = require('../middleware/auth');
 
 router.use(protect);
-router.use(authorize('admin'));
+router.use(authorize('superadmin', 'admin'));
 
 router.route('/')
   .get(getUsers)

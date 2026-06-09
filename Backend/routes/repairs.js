@@ -7,9 +7,9 @@ router.use(protect);
 
 router.route('/')
   .get(getRepairs)
-  .post(authorize('admin', 'it_staff'), createRepair);
+  .post(authorize('superadmin', 'admin', 'it_staff'), createRepair);
 
 router.route('/:id')
-  .put(authorize('admin', 'it_staff'), updateRepair);
+  .put(authorize('superadmin', 'admin', 'it_staff'), updateRepair);
 
 module.exports = router;

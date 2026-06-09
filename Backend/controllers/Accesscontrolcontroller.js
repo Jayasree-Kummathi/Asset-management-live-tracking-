@@ -7,6 +7,26 @@ const { query }    = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 const nodemailer   = require('nodemailer');
 const ExcelJS      = require('exceljs');
+const { isSuperAdmin, getUserLocations } = require('../utils/locationFilter');
+
+// ── Creator-group clause for access_control employee scoping ─────────────────
+// access_control stores emp_id — we scope via employees.created_by_admin_id
+const buildEmpCreatorJoin = (user, startIdx) => {
+  if (isSuperAdmin(user)) return { joinClause: '', joinParams: [], nextIdx: startIdx };
+  const locs = user?.managed_locations_array || (user?.location ? [user.location] : null);
+  if (!locs || !locs.length) return { joinClause: 'INNER JOIN employees _e ON _e.emp_id = ac.emp_id AND 1=0', joinParams: [], nextIdx: startIdx };
+  return {
+    joinClause: `INNER JOIN employees _e ON _e.emp_id = ac.emp_id
+      AND _e.created_by_admin_id IN (
+        SELECT id FROM users
+        WHERE managed_location = ANY($${startIdx}::text[])
+           OR managed_locations LIKE ANY(SELECT '%' || unnest($${startIdx}::text[]) || '%')
+      )`,
+    joinParams: [locs],
+    nextIdx: startIdx + 1,
+  };
+};
+
 
 // ── audit helper — safe import to avoid "audit is not a function" ─────────────
 // We require the full module and pull .audit, so Node's export object
@@ -195,7 +215,25 @@ bootstrapTable();
 // @route GET /api/access-control
 // ─────────────────────────────────────────────────────────────────────────────
 exports.getAll = asyncHandler(async (req, res) => {
-  const result = await query(`SELECT * FROM access_control ORDER BY created_at DESC`);
+  // Super admin sees everything
+  if (isSuperAdmin(req.user)) {
+    const result = await query(
+      `SELECT * FROM access_control ORDER BY created_at DESC`
+    );
+    return res.json({ success: true, data: result.rows });
+  }
+
+  // Non-superadmin: scope via creator-group join
+  const { joinClause, joinParams } = buildEmpCreatorJoin(req.user, 1);
+
+  const result = await query(
+    `SELECT ac.*
+     FROM access_control ac
+     ${joinClause}
+     ORDER BY ac.created_at DESC`,
+    joinParams
+  );
+
   res.json({ success: true, data: result.rows });
 });
 
@@ -208,32 +246,42 @@ exports.getReport = asyncHandler(async (req, res) => {
   const params = [];
   let idx = 1;
 
-  if (status && status !== 'all') { conditions.push(`status = $${idx++}`); params.push(status); }
-  if (access_type && access_type !== 'all') { conditions.push(`access_type = $${idx++}`); params.push(access_type); }
-  if (startDate) { conditions.push(`created_at >= $${idx++}`); params.push(startDate); }
-  if (endDate)   { conditions.push(`created_at <= $${idx++} || ' 23:59:59'`); params.push(endDate); }
+  if (status && status !== 'all') { conditions.push(`ac.status = $${idx++}`); params.push(status); }
+  if (access_type && access_type !== 'all') { conditions.push(`ac.access_type = $${idx++}`); params.push(access_type); }
+  if (startDate) { conditions.push(`ac.created_at >= $${idx++}`); params.push(startDate); }
+  if (endDate)   { conditions.push(`ac.created_at <= $${idx++} || ' 23:59:59'`); params.push(endDate); }
+
+  // ── Location isolation for multi-location support ───────────────────────────
+  let joinClause = '';
+  if (!isSuperAdmin(req.user)) {
+    const { joinClause: jc, joinParams: jp, nextIdx } = buildEmpCreatorJoin(req.user, idx);
+    if (jc) { joinClause = jc; params.push(...jp); idx = nextIdx; }
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const result = await query(`
     SELECT
-      id, emp_id, emp_name, emp_email, department,
-      access_type, access_value, duration_days, expiry_date, status,
-      TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at_fmt,
-      TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at_fmt,
+      ac.id, ac.emp_id, ac.emp_name, ac.emp_email, ac.department,
+      ac.access_type, ac.access_value, ac.duration_days, ac.expiry_date, ac.status,
+      TO_CHAR(ac.created_at, 'YYYY-MM-DD HH24:MI:SS') as created_at_fmt,
+      TO_CHAR(ac.updated_at, 'YYYY-MM-DD HH24:MI:SS') as updated_at_fmt,
       CASE
-        WHEN expiry_date IS NULL              THEN 'No Expiry'
-        WHEN expiry_date < CURRENT_DATE       THEN 'Expired'
-        WHEN expiry_date - CURRENT_DATE <= 7  THEN 'Expiring Soon (≤7d)'
-        WHEN expiry_date - CURRENT_DATE <= 30 THEN 'Expiring Soon (≤30d)'
+        WHEN ac.expiry_date IS NULL              THEN 'No Expiry'
+        WHEN ac.expiry_date < CURRENT_DATE       THEN 'Expired'
+        WHEN ac.expiry_date - CURRENT_DATE <= 7  THEN 'Expiring Soon (≤7d)'
+        WHEN ac.expiry_date - CURRENT_DATE <= 30 THEN 'Expiring Soon (≤30d)'
         ELSE 'Active'
       END as expiry_status,
-      (expiry_date - CURRENT_DATE) as days_remaining,
-      notes
-    FROM access_control ${where}
-    ORDER BY created_at DESC
+      (ac.expiry_date - CURRENT_DATE) as days_remaining,
+      ac.notes
+    FROM access_control ac
+    ${joinClause}
+    ${where}
+    ORDER BY ac.created_at DESC
   `, params);
 
+  // stats calculation stays the same...
   const stats = {
     total:        result.rows.length,
     active:       result.rows.filter(r => r.status === 'active' && (r.days_remaining === null || r.days_remaining > 0)).length,

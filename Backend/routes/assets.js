@@ -9,13 +9,13 @@ router.get('/stats', getStats);
 
 router.route('/')
   .get(getAssets)
-  .post(authorize('admin', 'it_staff'), createAsset);
+  .post(authorize('superadmin', 'admin', 'it_staff'), createAsset);
 
-router.post('/bulk', authorize('admin'), bulkCreateAssets);
+router.post('/bulk', authorize('superadmin', 'admin'), bulkCreateAssets);
 
 router.route('/:id')
   .get(getAsset)
-  .put(authorize('admin', 'it_staff'), updateAsset)
-  .delete(authorize('admin'), deleteAsset);
+  .put(authorize('superadmin', 'admin', 'it_staff'), updateAsset)
+  .delete(authorize('superadmin', 'admin'), deleteAsset);
 
 module.exports = router;

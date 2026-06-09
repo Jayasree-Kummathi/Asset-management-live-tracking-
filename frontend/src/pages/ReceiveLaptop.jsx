@@ -1,7 +1,6 @@
 // ─── ReceiveLaptop.jsx ───────────────────────────────────────────────────────
-// Fully updated component with chatbot pre-fill integration.
-// Includes portal-based allocation dropdown, condition assessment, photo uploads,
-// CC emails, and auto-selection when navigated from chatbot.
+// Dynamic accessories: checkboxes built from alloc.accessories (DB data).
+// ALWAYS includes Mouse + Laptop Bag as standard accessories for return tracking.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -13,6 +12,7 @@ import CCEmailInput from '../components/common/CCEmailInput';
 import {
   Download, CheckCircle, XCircle, AlertTriangle,
   ImagePlus, Trash2, Search, ChevronDown, X, User,
+  Package,
 } from 'lucide-react';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
@@ -26,7 +26,25 @@ const apiFetch = async (path, opts = {}) => {
   return data;
 };
 
-// ── Employee Avatar (reused pattern) ─────────────────────────────────────────
+// ── Standard accessories shown for EVERY return ────────────────────────────────
+const STANDARD_ACCESSORIES = ['Mouse', 'Laptop Bag'];
+
+// ── Emoji icon map for common accessory names ─────────────────────────────────
+const accessoryIcon = (name = '') => {
+  const n = name.toLowerCase();
+  if (n.includes('mouse'))      return '🖱️';
+  if (n.includes('bag'))        return '💼';
+  if (n.includes('hdmi'))       return '🔌';
+  if (n.includes('charger') || n.includes('adapter') || n.includes('power')) return '🔋';
+  if (n.includes('keyboard'))   return '⌨️';
+  if (n.includes('cable'))      return '🔗';
+  if (n.includes('dock'))       return '🖥️';
+  if (n.includes('headset') || n.includes('headphone')) return '🎧';
+  if (n.includes('webcam') || n.includes('camera'))     return '📷';
+  return '📦';
+};
+
+// ── Employee Avatar ───────────────────────────────────────────────────────────
 function EmpAvatar({ photo, name, size = 36 }) {
   if (photo) {
     return (
@@ -95,7 +113,6 @@ function AllocationDropdown({ allocations, assets, selectedAllocId, onSelect }) 
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Fuzzy-ish multi-field search across allocation + asset
   const filtered = allocations.filter(a => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -109,15 +126,14 @@ function AllocationDropdown({ allocations, assets, selectedAllocId, onSelect }) 
   const dropdown = open ? ReactDOM.createPortal(
     <div ref={dropRef} style={{
       ...dropStyle,
-      background:   'var(--surface)',
-      border:       '1px solid var(--border)',
-      borderRadius: 'var(--radius)',
-      boxShadow:    '0 16px 48px rgba(0,0,0,0.55)',
-      overflow:     'hidden',
-      display:      'flex',
-      flexDirection:'column',
+      background:    'var(--surface)',
+      border:        '1px solid var(--border)',
+      borderRadius:  'var(--radius)',
+      boxShadow:     '0 16px 48px rgba(0,0,0,0.55)',
+      overflow:      'hidden',
+      display:       'flex',
+      flexDirection: 'column',
     }}>
-      {/* Search bar */}
       <div style={{
         padding: '10px 12px', borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', gap: 8,
@@ -141,7 +157,6 @@ function AllocationDropdown({ allocations, assets, selectedAllocId, onSelect }) 
         )}
       </div>
 
-      {/* Result count */}
       <div style={{
         padding: '5px 14px', fontSize: 11, color: 'var(--text-muted)',
         background: 'var(--surface2)', borderBottom: '1px solid var(--border)',
@@ -157,7 +172,6 @@ function AllocationDropdown({ allocations, assets, selectedAllocId, onSelect }) 
         )}
       </div>
 
-      {/* List */}
       <div style={{ maxHeight: 360, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
@@ -182,10 +196,7 @@ function AllocationDropdown({ allocations, assets, selectedAllocId, onSelect }) 
               onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface2)'; }}
               onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
             >
-              {/* Avatar */}
               <EmpAvatar photo={alloc.photoUrl} name={alloc.empName} size={38} />
-
-              {/* Main info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontWeight: 600, fontSize: 13.5, color: isSelected ? 'var(--accent)' : 'var(--text)',
@@ -199,8 +210,6 @@ function AllocationDropdown({ allocations, assets, selectedAllocId, onSelect }) 
                   {alloc.project    && <span>· {alloc.project}</span>}
                 </div>
               </div>
-
-              {/* Asset badge */}
               {asset && (
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{
@@ -221,15 +230,12 @@ function AllocationDropdown({ allocations, assets, selectedAllocId, onSelect }) 
                   )}
                 </div>
               )}
-
-              {/* Allocated date */}
               <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 64 }}>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Since</div>
                 <div style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>
                   {alloc.allocationDate}
                 </div>
               </div>
-
               {isSelected && (
                 <CheckCircle size={15} style={{ color: 'var(--accent)', flexShrink: 0, marginLeft: 4 }} />
               )}
@@ -267,7 +273,6 @@ function AllocationDropdown({ allocations, assets, selectedAllocId, onSelect }) 
                 {selectedAsset && ` · ${selectedAsset.id} — ${selectedAsset.brand} ${selectedAsset.model}`}
               </div>
             </div>
-            {/* Clear button */}
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onSelect(''); }}
@@ -304,79 +309,131 @@ export default function ReceiveLaptop() {
   const navigate  = useNavigate();
   const photoRef  = useRef();
 
-  const [selectedAllocId, setSelectedAllocId] = useState('');
-  const [working,         setWorking]         = useState(null);
-  const [damaged,         setDamaged]         = useState(null);
-  const [damageDesc,      setDamageDesc]      = useState('');
-  const [returnPhotos,    setReturnPhotos]    = useState([]);
-  const [ccEmails,        setCCEmails]        = useState([]);
-  const [submitted,       setSubmitted]       = useState(false);
-  const [saving,          setSaving]          = useState(false);
+  const [selectedAllocId,     setSelectedAllocId]     = useState('');
+  const [working,             setWorking]             = useState(null);
+  const [damaged,             setDamaged]             = useState(null);
+  const [damageDesc,          setDamageDesc]          = useState('');
+  const [returnPhotos,        setReturnPhotos]        = useState([]);
+  const [ccEmails,            setCCEmails]            = useState([]);
+  // ── returnedAccessories: { 'Mouse': true, 'Laptop Bag': false, ... }
+  const [returnedAccessories, setReturnedAccessories] = useState({});
+  const [submitted,           setSubmitted]           = useState(false);
+  const [saving,              setSaving]              = useState(false);
 
   const activeAllocs = allocations.filter(a => a.status === 'Active');
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // CHATBOT PREFILL HOOK – auto-selects allocation passed from chatbot
-  // Place this AFTER useState declarations, BEFORE the other useEffect
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Build the accessory list for the currently selected allocation ──────────
+  // ALWAYS combine DB accessories with STANDARD accessories (Mouse + Laptop Bag)
+  const getAllocAccessories = (alloc) => {
+    if (!alloc) return [];
+    
+    // Get DB accessories
+    const raw = alloc.accessories;
+    let dbAccessories = [];
+    
+    if (Array.isArray(raw)) {
+      dbAccessories = raw.filter(Boolean);
+    } else if (typeof raw === 'string') {
+      dbAccessories = raw.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    
+    // ALWAYS include standard accessories for return tracking
+    const allAccessories = [...new Set([...STANDARD_ACCESSORIES, ...dbAccessories])];
+    
+    return allAccessories;
+  };
+
+  // Get count of DB accessories only (for UI messaging)
+  const getDbAccessoriesCount = (alloc) => {
+    if (!alloc) return 0;
+    const raw = alloc.accessories;
+    const list = Array.isArray(raw) ? raw.filter(Boolean)
+                 : typeof raw === 'string' ? raw.split(',').map(s=>s.trim()).filter(Boolean)
+                 : [];
+    return list.length;
+  };
+
+  // Check if DB has any accessories
+  const hasDbAccessories = (alloc) => {
+    return getDbAccessoriesCount(alloc) > 0;
+  };
+
+  // ── Reset accessories checkboxes when allocation changes ───────────────────
+  const resetAccessories = (alloc) => {
+    const items = getAllocAccessories(alloc);
+    const initial = {};
+    items.forEach(item => { initial[item] = false; });
+    setReturnedAccessories(initial);
+  };
+
+  // ── Toggle a single accessory checkbox ────────────────────────────────────
+  const toggleAccessory = (item) => {
+    setReturnedAccessories(prev => ({ ...prev, [item]: !prev[item] }));
+  };
+
+  // ── Select all accessories ─────────────────────────────────────────────────
+  const selectAllAccessories = () => {
+    const items = getAllocAccessories(alloc);
+    const allSelected = {};
+    items.forEach(item => { allSelected[item] = true; });
+    setReturnedAccessories(allSelected);
+  };
+
+  // ── Clear all accessories ──────────────────────────────────────────────────
+  const clearAllAccessories = () => {
+    const items = getAllocAccessories(alloc);
+    const noneSelected = {};
+    items.forEach(item => { noneSelected[item] = false; });
+    setReturnedAccessories(noneSelected);
+  };
+
+  // ── Chatbot prefill hook ───────────────────────────────────────────────────
   useEffect(() => {
-    // Check if chatbot navigated here with a pre-filled allocation
     const state = location.state;
     if (!state) return;
-
-    const prefillId     = state.prefillAllocationId || state.allocationId;
-    const prefillAsset  = state.prefillAssetId      || state.assetId;
-    const prefillEmpId  = state.prefillEmpId        || state.empId;
-    const prefillEmpName= state.prefillEmpName      || state.empName;
-
+    const prefillId    = state.prefillAllocationId || state.allocationId;
+    const prefillAsset = state.prefillAssetId      || state.assetId;
+    const prefillEmpId = state.prefillEmpId        || state.empId;
     if (!prefillId && !prefillAsset) return;
-
-    // Wait for allocations to load, then find and select the matching one
     const tryPrefill = () => {
-      // activeAllocs is the filtered list of active allocations
       if (!activeAllocs || activeAllocs.length === 0) return false;
-
-      // Find by DB id first, then by asset_id, then by emp_id
       const match =
         activeAllocs.find(a => a.id === prefillId) ||
         activeAllocs.find(a => a.assetId === prefillAsset) ||
-        activeAllocs.find(a => a.empId   === prefillEmpId && a.status === 'Active');
-
-      if (match) {
-        setSelectedAllocId(match.id);
-        return true;
-      }
+        activeAllocs.find(a => a.empId === prefillEmpId && a.status === 'Active');
+      if (match) { handleSelectAlloc(match.id); return true; }
       return false;
     };
-
-    // Try immediately (if allocations already loaded)
     if (!tryPrefill()) {
-      // If not loaded yet, retry after a short delay
       const timer = setTimeout(tryPrefill, 800);
       return () => clearTimeout(timer);
     }
-
-    // Clear state so back-navigation doesn't re-trigger
     window.history.replaceState({}, document.title);
   }, [location.state, activeAllocs]);
-  // ─────────────────────────────────────────────────────────────────────────────
 
-  // Handle direct navigation with allocationId (legacy support)
+  // ── Legacy direct-navigation support ─────────────────────────────────────
   useEffect(() => {
     if (location.state?.allocationId && !selectedAllocId) {
-      setSelectedAllocId(location.state.allocationId);
+      handleSelectAlloc(location.state.allocationId);
     }
-  }, [location.state, selectedAllocId]);
+  }, [location.state]);
 
-  // Reset condition when allocation changes
+  // ── Reset everything when allocation changes ───────────────────────────────
   const handleSelectAlloc = (id) => {
     setSelectedAllocId(id);
     setWorking(null); setDamaged(null);
     setDamageDesc(''); setReturnPhotos([]);
+    const alloc = allocations.find(a => a.id === id);
+    resetAccessories(alloc || null);
   };
 
   const alloc = allocations.find(a => a.id === selectedAllocId);
   const asset = alloc ? assets.find(a => a.id === alloc.assetId) : null;
+
+  // ── Accessories for this allocation ───────────────────────────────────────
+  const allocAccessories = getAllocAccessories(alloc);
+  const dbCount = getDbAccessoriesCount(alloc);
+  const checkedCount = Object.values(returnedAccessories).filter(Boolean).length;
 
   const getCondition = () => {
     if (working === 'yes' && damaged === 'no')  return 'good';
@@ -406,13 +463,27 @@ export default function ReceiveLaptop() {
   };
   const removePhoto = (idx) => setReturnPhotos(prev => prev.filter((_, i) => i !== idx));
 
+  // ── Build returned accessories list: only checked items ───────────────────
+  const getReturnedAccessoriesList = () =>
+    Object.entries(returnedAccessories)
+      .filter(([, checked]) => checked)
+      .map(([item]) => item);
+
   // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!alloc || !condition) return;
     setSaving(true);
     try {
-      await receiveAsset(alloc.dbId, alloc.assetId, condition, damageDesc, ccEmails, returnPhotos);
+      await receiveAsset(
+        alloc.dbId,
+        alloc.assetId,
+        condition,
+        damageDesc,
+        ccEmails,
+        returnPhotos,
+        getReturnedAccessoriesList(),
+      );
       setSubmitted(true);
       setTimeout(() => navigate('/allocation-list'), 1800);
     } catch (_) { setSaving(false); }
@@ -442,7 +513,6 @@ export default function ReceiveLaptop() {
 
           {/* ── LEFT: Select Allocation ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* NOTE: overflow:visible is critical for the portal dropdown */}
             <div className="card" style={{ overflow: 'visible' }}>
               <div className="section-title">
                 <Search size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
@@ -452,7 +522,6 @@ export default function ReceiveLaptop() {
                 </span>
               </div>
 
-              {/* Advanced searchable dropdown */}
               <div className="form-group" style={{ marginBottom: alloc ? 16 : 0 }}>
                 <label className="form-label">Search Employee / Asset *</label>
                 <AllocationDropdown
@@ -461,10 +530,7 @@ export default function ReceiveLaptop() {
                   selectedAllocId={selectedAllocId}
                   onSelect={handleSelectAlloc}
                 />
-                <div style={{
-                  fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6,
-                  display: 'flex', gap: 12,
-                }}>
+                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>
                   <span>🔍 Search by name, employee ID, asset number, serial, department…</span>
                 </div>
               </div>
@@ -492,7 +558,14 @@ export default function ReceiveLaptop() {
                   </div>
                   <div className="info-row"><span className="info-label">Model</span><span className="info-value">{asset.brand} {asset.model}</span></div>
                   <div className="info-row"><span className="info-label">Configuration</span><span className="info-value">{asset.config}</span></div>
-                  <div className="info-row"><span className="info-label">Accessories</span><span className="info-value">{alloc.accessories?.join(', ') || 'None'}</span></div>
+                  <div className="info-row">
+                    <span className="info-label">Accessories (from DB)</span>
+                    <span className="info-value">
+                      {hasDbAccessories(alloc)
+                        ? (Array.isArray(alloc.accessories) ? alloc.accessories.join(', ') : alloc.accessories)
+                        : <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>None recorded</span>}
+                    </span>
+                  </div>
 
                   {/* Original allocation condition photos */}
                   {(() => {
@@ -536,7 +609,7 @@ export default function ReceiveLaptop() {
             </div>
           </div>
 
-          {/* ── RIGHT: Condition + Photos + CC ── */}
+          {/* ── RIGHT: Condition + Accessories + Photos + CC ── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {/* Condition Assessment */}
@@ -609,6 +682,155 @@ export default function ReceiveLaptop() {
                   </div>
                 );
               })()}
+            </div>
+
+            {/* ── Returned Accessories ─────────────────────────────────────── */}
+            <div className="card">
+              <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div>
+                  <Package size={13} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                  Returned Accessories
+                  {checkedCount > 0 && (
+                    <span style={{
+                      marginLeft: 8, fontSize: 10, fontWeight: 700,
+                      background: 'var(--accent)', color: '#fff',
+                      padding: '2px 7px', borderRadius: 20,
+                    }}>
+                      {checkedCount}/{allocAccessories.length} collected
+                    </span>
+                  )}
+                </div>
+                {allocAccessories.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={selectAllAccessories}
+                      style={{
+                        fontSize: 11, background: 'none', border: 'none',
+                        color: 'var(--accent)', cursor: 'pointer',
+                        padding: '4px 8px', borderRadius: 4,
+                      }}
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearAllAccessories}
+                      style={{
+                        fontSize: 11, background: 'none', border: 'none',
+                        color: 'var(--text-muted)', cursor: 'pointer',
+                        padding: '4px 8px', borderRadius: 4,
+                      }}
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Source indicator */}
+              <div style={{
+                fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 12,
+                padding: '8px 12px', borderRadius: 'var(--radius)',
+                background: 'rgba(99,102,241,.08)',
+                border: '1px solid rgba(99,102,241,.2)',
+              }}>
+                {alloc ? (
+                  <>
+                    <Package size={12} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                    {!hasDbAccessories(alloc) ? (
+                      <>
+                        ℹ️ No accessories recorded in database for this allocation.<br />
+                        <strong>Standard accessories (Mouse, Laptop Bag)</strong> are shown below for return tracking.
+                      </>
+                    ) : (
+                      <>
+                        ✅ <strong>{allocAccessories.length}</strong> accessories available for return tracking
+                        (<strong>{dbCount}</strong> from database + <strong>{STANDARD_ACCESSORIES.length}</strong> standard items)
+                      </>
+                    )}
+                    <br />
+                    <span style={{ fontSize: 10, opacity: 0.8 }}>
+                      Tick each item that was physically returned with the laptop.
+                    </span>
+                  </>
+                ) : '📦 Select an allocation above to see accessories.'}
+              </div>
+
+              {allocAccessories.length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic', padding: '16px', textAlign: 'center' }}>
+                  No accessories to record for this allocation.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {allocAccessories.map(item => {
+                    const checked = !!returnedAccessories[item];
+                    const isStandard = STANDARD_ACCESSORIES.includes(item);
+                    return (
+                      <label
+                        key={item}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '12px 14px', borderRadius: 'var(--radius)',
+                          border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--border)'}`,
+                          background: checked ? 'var(--accent-glow)' : 'var(--surface2)',
+                          cursor: 'pointer', transition: 'all .15s', userSelect: 'none',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleAccessory(item)}
+                          style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                        />
+                        <span style={{ fontSize: 18, lineHeight: 1 }}>{accessoryIcon(item)}</span>
+                        <span style={{
+                          fontSize: 13.5, fontWeight: checked ? 700 : 500,
+                          color: checked ? 'var(--accent)' : 'var(--text)',
+                          flex: 1,
+                        }}>
+                          {item}
+                          {isStandard && (
+                            <span style={{
+                              fontSize: 10, marginLeft: 8, padding: '2px 6px',
+                              background: 'rgba(99,102,241,.15)', borderRadius: 12,
+                              color: 'var(--accent)'
+                            }}>
+                              Standard
+                            </span>
+                          )}
+                        </span>
+                        {checked
+                          ? <CheckCircle size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+                          : <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>Not returned</span>
+                        }
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+
+              {allocAccessories.length > 0 && checkedCount === 0 && (
+                <div style={{
+                  marginTop: 12, fontSize: 11.5, color: 'var(--text-muted)',
+                  padding: '8px 12px', background: 'rgba(251,191,36,.08)',
+                  border: '1px solid rgba(251,191,36,.25)', borderRadius: 'var(--radius)',
+                }}>
+                  <AlertTriangle size={12} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                  No accessories ticked — the return email will note that none were collected.
+                </div>
+              )}
+              
+              {checkedCount === allocAccessories.length && allocAccessories.length > 0 && (
+                <div style={{
+                  marginTop: 12, fontSize: 11.5, color: 'var(--green)',
+                  padding: '8px 12px', background: 'rgba(34,197,94,.08)',
+                  border: '1px solid rgba(34,197,94,.25)', borderRadius: 'var(--radius)',
+                }}>
+                  <CheckCircle size={12} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                  All accessories marked as returned!
+                </div>
+              )}
             </div>
 
             {/* Return Condition Photos */}

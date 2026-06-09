@@ -1,47 +1,70 @@
-const { query } = require('../config/db');
-const asyncHandler = require('../utils/asyncHandler');
+'use strict';
+// Backend/controllers/assetController.js
+// ── Location isolation added to every query ───────────────────────────────────
 
-// ── Date sanitizer ────────────────────────────────────────────────────────────
-// Converts ANY date input (text string, JS Date, Excel serial, ISO datetime)
-// into a plain 'YYYY-MM-DD' string for PostgreSQL DATE columns.
-// Returns null if the value is empty / unparseable.
+const { query }    = require('../config/db');
+const asyncHandler = require('../utils/asyncHandler');
+const { isSuperAdmin, applyLocationFilter, buildLocClause } = require('../utils/locationFilter');
+
+// ── Bootstrap: add location column to assets table ────────────────────────────
+const bootstrapAssetLocation = async () => {
+  try {
+    const t = await query(
+      `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'assets')`
+    );
+    if (!t.rows[0].exists) return;
+
+    const cols  = await query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'assets'`
+    );
+    const names = cols.rows.map(c => c.column_name);
+
+    if (!names.includes('location')) {
+      await query(`ALTER TABLE assets ADD COLUMN location VARCHAR(100) DEFAULT NULL`);
+      console.log('✅ Added location column to assets');
+
+      // Back-fill from the allocated employee's location
+      await query(`
+        UPDATE assets a
+        SET    location = e.location
+        FROM   allocations al
+        JOIN   employees e ON e.emp_id = al.emp_id
+        WHERE  al.asset_id = a.asset_id
+          AND  al.status = 'Active'
+          AND  e.location IS NOT NULL
+          AND  a.location IS NULL
+      `).catch(() => {});
+
+      console.log('✅ Back-filled asset locations from allocations');
+    }
+  } catch (err) {
+    console.warn('Asset bootstrap warning:', err.message);
+  }
+};
+bootstrapAssetLocation();
+
+// ── Date sanitizer (unchanged from your original) ─────────────────────────────
 const toDateOnly = (val) => {
   if (val === null || val === undefined || val === '') return null;
   const s = String(val).trim();
   if (!s) return null;
-
-  // Already clean YYYY-MM-DD — return as-is
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-  // Excel numeric serial date (e.g. 45678)
   if (/^\d{5}$/.test(s)) {
     const excelEpoch = new Date(Date.UTC(1899, 11, 30));
     const d = new Date(excelEpoch.getTime() + Number(s) * 86400000);
     return d.toISOString().split('T')[0];
   }
-
-  // ISO string with time/timezone (e.g. "2024-01-10T00:00:00.000Z" or "2024-01-10T00:00:00+05:30")
   const isoMatch = s.match(/^(\d{4}-\d{2}-\d{2})T/);
   if (isoMatch) return isoMatch[1];
-
-  // DD-MM-YYYY or DD/MM/YYYY
   const dmyMatch = s.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
   if (dmyMatch) return `${dmyMatch[3]}-${dmyMatch[2]}-${dmyMatch[1]}`;
-
-  // MM/DD/YYYY
   const mdyMatch = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (mdyMatch) return `${mdyMatch[3]}-${mdyMatch[1]}-${mdyMatch[2]}`;
-
-  // Last resort — parse with Date (strip timezone by using UTC)
   const d = new Date(s);
-  if (!isNaN(d.getTime())) {
-    return d.toISOString().split('T')[0];
-  }
-
-  return null; // unparseable — let DB reject rather than corrupt
+  if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  return null;
 };
 
-// helper to write audit log inline
 const audit = (action, category, detail, assetId, performedBy, meta = null) =>
   query(
     `INSERT INTO audit_logs (action, category, detail, asset_id, performed_by, meta)
@@ -49,31 +72,28 @@ const audit = (action, category, detail, assetId, performedBy, meta = null) =>
     [action, category, detail, assetId, performedBy, meta ? JSON.stringify(meta) : null]
   );
 
-// @route  GET /api/assets
+
+// ── GET /api/assets ───────────────────────────────────────────────────────────
 exports.getAssets = asyncHandler(async (req, res) => {
   const { status, search, page = 1, limit = 50 } = req.query;
-  const offset = (page - 1) * limit;
-  const params = [];
+  const offset     = (page - 1) * limit;
   const conditions = [];
-  let idx = 1;
+  const params     = [];
+  let   idx        = 1;
 
-  if (status && status !== 'All') {
-    conditions.push(`status = $${idx++}`);
-    params.push(status);
-  }
-
+  if (status && status !== 'All') { conditions.push(`status = $${idx++}`); params.push(status); }
   if (search) {
-    conditions.push(
-      `(asset_id ILIKE $${idx} OR serial ILIKE $${idx} OR brand ILIKE $${idx} OR model ILIKE $${idx})`
-    );
-    params.push(`%${search}%`);
-    idx++;
+    conditions.push(`(asset_id ILIKE $${idx} OR serial ILIKE $${idx} OR brand ILIKE $${idx} OR model ILIKE $${idx})`);
+    params.push(`%${search}%`); idx++;
   }
+
+  // ── Location isolation ──────────────────────────────────────────────────────
+  idx = applyLocationFilter(conditions, params, idx, req.user);
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const countResult = await query(`SELECT COUNT(*) FROM assets ${where}`, params);
-  const total = Number(countResult.rows[0].count);
+  const total       = Number(countResult.rows[0].count);
 
   const dataResult = await query(
     `SELECT * FROM assets ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
@@ -90,27 +110,34 @@ exports.getAssets = asyncHandler(async (req, res) => {
   });
 });
 
-// @route  GET /api/assets/stats
+
+// ── GET /api/assets/stats ─────────────────────────────────────────────────────
 exports.getStats = asyncHandler(async (req, res) => {
+  const { locClause, locParams } = buildLocClause(req.user, 1);
+
   const counts = await query(
     `SELECT
-       COUNT(*)                                           AS total,
-       COUNT(*) FILTER (WHERE status = 'Stock')          AS stock,
-       COUNT(*) FILTER (WHERE status = 'Allocated')      AS allocated,
-       COUNT(*) FILTER (WHERE status = 'Repair')         AS repair,
-       COUNT(*) FILTER (WHERE status = 'Scrap')          AS scrap
-     FROM assets`
+       COUNT(*)                                        AS total,
+       COUNT(*) FILTER (WHERE status = 'Stock')       AS stock,
+       COUNT(*) FILTER (WHERE status = 'Allocated')   AS allocated,
+       COUNT(*) FILTER (WHERE status = 'Repair')      AS repair,
+       COUNT(*) FILTER (WHERE status = 'Scrap')       AS scrap
+     FROM assets WHERE 1=1 ${locClause}`,
+    locParams
   );
 
   const brands = await query(
     `SELECT brand AS name, COUNT(*) AS count
-     FROM assets GROUP BY brand ORDER BY count DESC`
+     FROM assets WHERE 1=1 ${locClause}
+     GROUP BY brand ORDER BY count DESC`,
+    locParams
   );
 
   const locations = await query(
     `SELECT location AS name, COUNT(*) AS count
-     FROM assets WHERE location IS NOT NULL
-     GROUP BY location ORDER BY count DESC`
+     FROM assets WHERE location IS NOT NULL ${locClause.replace('AND', 'AND')}
+     GROUP BY location ORDER BY count DESC`,
+    locParams
   );
 
   res.json({
@@ -123,23 +150,34 @@ exports.getStats = asyncHandler(async (req, res) => {
   });
 });
 
-// @route  GET /api/assets/:id
-exports.getAsset = asyncHandler(async (req, res) => {
-  const result = await query('SELECT * FROM assets WHERE asset_id = $1', [req.params.id.toUpperCase()]);
 
-  if (!result.rows.length) {
+// ── GET /api/assets/:id ───────────────────────────────────────────────────────
+exports.getAsset = asyncHandler(async (req, res) => {
+  const { locClause, locParams } = buildLocClause(req.user, 2);
+
+  const result = await query(
+    `SELECT * FROM assets WHERE asset_id = $1 ${locClause}`,
+    [req.params.id.toUpperCase(), ...locParams]
+  );
+
+  if (!result.rows.length)
     return res.status(404).json({ success: false, message: `Asset ${req.params.id} not found` });
-  }
 
   res.json({ success: true, data: result.rows[0] });
 });
 
-// @route  POST /api/assets
+
+// ── POST /api/assets ──────────────────────────────────────────────────────────
 exports.createAsset = asyncHandler(async (req, res) => {
   const {
     asset_id, serial, brand, model, config, processor, ram, storage,
     purchase_date, warranty_start, warranty_end, vendor, location, notes,
   } = req.body;
+
+  // Non-superadmins always get their own location stamped
+  const effectiveLocation = isSuperAdmin(req.user)
+    ? (location || null)
+    : (req.user?.location || null);
 
   const result = await query(
     `INSERT INTO assets
@@ -153,12 +191,11 @@ exports.createAsset = asyncHandler(async (req, res) => {
       toDateOnly(purchase_date),
       toDateOnly(warranty_start),
       toDateOnly(warranty_end),
-      vendor, location, notes,
+      vendor, effectiveLocation, notes,
     ]
   );
 
   const asset = result.rows[0];
-
   await audit('ASSET_ADDED', 'asset',
     `Asset ${asset.asset_id} (${asset.brand} ${asset.model}) added to inventory`,
     asset.asset_id, req.user?.name || 'Admin');
@@ -166,99 +203,97 @@ exports.createAsset = asyncHandler(async (req, res) => {
   res.status(201).json({ success: true, data: asset });
 });
 
-// @route  PUT /api/assets/:id
-exports.updateAsset = asyncHandler(async (req, res) => {
-  const id = req.params.id.toUpperCase();
 
-  // Date fields that need sanitization before hitting Postgres
+// ── PUT /api/assets/:id ───────────────────────────────────────────────────────
+exports.updateAsset = asyncHandler(async (req, res) => {
+  const id          = req.params.id.toUpperCase();
   const DATE_FIELDS = new Set(['purchase_date', 'warranty_start', 'warranty_end']);
 
   const allowed = [
     'serial', 'brand', 'model', 'config', 'processor', 'ram', 'storage',
     'purchase_date', 'warranty_start', 'warranty_end',
-    'vendor', 'location', 'notes', 'status',
+    'vendor', 'notes', 'status',
   ];
+  // Only superadmin can move an asset to a different location
+  if (isSuperAdmin(req.user)) allowed.push('location');
 
   const updates = [];
   const params  = [];
-  let idx = 1;
+  let   idx     = 1;
 
   for (const key of allowed) {
     if (req.body[key] !== undefined) {
       const value = DATE_FIELDS.has(key) ? toDateOnly(req.body[key]) : req.body[key];
-      // Use explicit ::date cast for date columns to avoid timezone interpretation
       updates.push(DATE_FIELDS.has(key) ? `${key} = $${idx++}::date` : `${key} = $${idx++}`);
       params.push(value);
     }
   }
 
-  if (!updates.length) {
+  if (!updates.length)
     return res.status(400).json({ success: false, message: 'No valid fields to update' });
+
+  // Non-superadmins can only update assets within their own location
+  let whereClause = `asset_id = $${idx}`;
+  params.push(id); idx++;
+
+  if (!isSuperAdmin(req.user) && req.user?.location) {
+    whereClause += ` AND location = $${idx}`;
+    params.push(req.user.location);
   }
 
-  params.push(id);
   const result = await query(
-    `UPDATE assets SET ${updates.join(', ')} WHERE asset_id = $${idx} RETURNING *`,
+    `UPDATE assets SET ${updates.join(', ')} WHERE ${whereClause} RETURNING *`,
     params
   );
 
-  if (!result.rows.length) {
-    return res.status(404).json({ success: false, message: `Asset ${id} not found` });
-  }
+  if (!result.rows.length)
+    return res.status(404).json({ success: false, message: `Asset ${id} not found (or outside your location)` });
 
   await audit('ASSET_UPDATED', 'asset', `Asset ${id} updated`, id, req.user?.name || 'Admin');
-
   res.json({ success: true, data: result.rows[0] });
 });
 
-// @route  DELETE /api/assets/:id
+
+// ── DELETE /api/assets/:id ────────────────────────────────────────────────────
 exports.deleteAsset = asyncHandler(async (req, res) => {
   const id = req.params.id.toUpperCase();
 
-  // Block delete if asset is currently active/allocated
+  // Block delete if currently allocated
   const activeAlloc = await query(
-    `SELECT id FROM allocations WHERE asset_id = $1 AND status = 'Active'`,
-    [id]
+    `SELECT id FROM allocations WHERE asset_id = $1 AND status = 'Active'`, [id]
   );
-  if (activeAlloc.rows.length) {
+  if (activeAlloc.rows.length)
     return res.status(400).json({
       success: false,
       message: 'Cannot delete — asset is currently allocated. Receive it first.',
     });
-  }
 
-  // Fetch asset details BEFORE anything is deleted
-  const assetRes = await query(`SELECT * FROM assets WHERE asset_id = $1`, [id]);
-  const asset    = assetRes.rows[0];
-  if (!asset) {
-    return res.status(404).json({ success: false, message: `Asset ${id} not found` });
-  }
+  // Fetch asset details + enforce location boundary
+  const { locClause, locParams } = buildLocClause(req.user, 2);
+  const assetRes = await query(
+    `SELECT * FROM assets WHERE asset_id = $1 ${locClause}`,
+    [id, ...locParams]
+  );
+  if (!assetRes.rows.length)
+    return res.status(404).json({ success: false, message: `Asset ${id} not found (or outside your location)` });
 
-  // ── Delete in FK-safe order (children first, then parents) ─────────────────
+  const asset = assetRes.rows[0];
 
-  // 1. acceptance_tokens references allocations.id  ← MUST be first
+  // Delete in FK-safe order (children first)
   await query(
     `DELETE FROM acceptance_tokens
-     WHERE allocation_id IN (SELECT id FROM allocations WHERE asset_id = $1)`,
-    [id]
+     WHERE allocation_id IN (SELECT id FROM allocations WHERE asset_id = $1)`, [id]
   );
-
-  // 2. accessory_allocations references asset_id
   await query(`DELETE FROM accessory_allocations  WHERE asset_id = $1`, [id]);
-
-  // 3. allocations — safe to delete now that acceptance_tokens is gone
   await query(`DELETE FROM allocations            WHERE asset_id = $1`, [id]);
-
-  // 4. remaining referencing tables
   await query(`DELETE FROM repairs                WHERE asset_id = $1`, [id]);
   await query(`DELETE FROM scraps                 WHERE asset_id = $1`, [id]);
-  await query(`DELETE FROM agent_registrations    WHERE asset_id = $1`, [id]);
-  await query(`DELETE FROM asset_locations        WHERE asset_id = $1`, [id]);
-  await query(`DELETE FROM asset_location_history WHERE asset_id = $1`, [id]);
-  await query(`DELETE FROM asset_online_daily     WHERE asset_id = $1`, [id]);
+  await query(`DELETE FROM agent_registrations    WHERE asset_id = $1`, [id]).catch(() => {});
+  await query(`DELETE FROM asset_locations        WHERE asset_id = $1`, [id]).catch(() => {});
+  await query(`DELETE FROM asset_location_history WHERE asset_id = $1`, [id]).catch(() => {});
+  await query(`DELETE FROM asset_online_daily     WHERE asset_id = $1`, [id]).catch(() => {});
 
-  // ✅ Write audit log BEFORE deleting the asset row
-  // (if audit_logs.asset_id has a FK to assets, this must come before DELETE)
+  // Audit BEFORE deleting the asset row (FK safety)
   await query(
     `INSERT INTO audit_logs (action, category, detail, performed_by, meta)
      VALUES ('ASSET_DELETED', 'asset', $1, $2, $3)`,
@@ -272,25 +307,27 @@ exports.deleteAsset = asyncHandler(async (req, res) => {
     ]
   );
 
-  // 5. Finally delete the asset itself
   await query(`DELETE FROM assets WHERE asset_id = $1`, [id]);
-
   res.json({ success: true, message: 'Asset deleted successfully' });
 });
 
 
-// @route  POST /api/assets/bulk
-// @access Admin only — import multiple assets at once
+// ── POST /api/assets/bulk ─────────────────────────────────────────────────────
 exports.bulkCreateAssets = asyncHandler(async (req, res) => {
   const { assets } = req.body;
-  if (!assets || !Array.isArray(assets) || assets.length === 0) {
+  if (!assets || !Array.isArray(assets) || assets.length === 0)
     return res.status(400).json({ success: false, message: 'No assets provided' });
-  }
+
+  // Non-superadmins can only bulk-import into their own location
+  const effectiveLocation = isSuperAdmin(req.user)
+    ? null  // each row may carry its own location
+    : (req.user?.location || null);
 
   const results = { created: [], failed: [] };
 
   for (const a of assets) {
     try {
+      const loc = effectiveLocation || a.location || null;
       const result = await query(
         `INSERT INTO assets
            (asset_id, serial, brand, model, config, processor, ram, storage,
@@ -300,16 +337,12 @@ exports.bulkCreateAssets = asyncHandler(async (req, res) => {
         [
           (a.asset_id || a.id || '').toUpperCase(),
           a.serial, a.brand, a.model,
-          a.config    || null,
-          a.processor || null,
-          a.ram       || null,
-          a.storage   || null,
+          a.config    || null, a.processor || null,
+          a.ram       || null, a.storage   || null,
           toDateOnly(a.purchase_date),
           toDateOnly(a.warranty_start),
           toDateOnly(a.warranty_end),
-          a.vendor   || null,
-          a.location || null,
-          a.notes    || null,
+          a.vendor || null, loc, a.notes || null,
         ]
       );
       results.created.push(result.rows[0].asset_id);

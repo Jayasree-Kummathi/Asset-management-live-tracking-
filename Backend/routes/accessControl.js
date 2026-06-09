@@ -10,16 +10,16 @@ router.use(protect);
 
 // 👀 Accessible to any logged-in user
 router.get('/', ctrl.getAll);
-router.get('/report', authorize('admin'), ctrl.getReport);
+router.get('/report', authorize('superadmin', 'admin'), ctrl.getReport);
 
 // 📊 Excel/CSV Report routes
-router.get('/report/excel', authorize('admin'), ctrl.exportExcelReport);
-router.get('/export/csv', authorize('admin'), ctrl.exportCSV);
+router.get('/report/excel', authorize('superadmin', 'admin'), ctrl.exportExcelReport);
+router.get('/export/csv', authorize('superadmin', 'admin'), ctrl.exportCSV);
 
 // 🔒 Admin-only routes
-router.post('/', authorize('admin'), ctrl.grantAccess);
-router.put('/:id', authorize('admin'), ctrl.updateAccess);
-router.put('/:id/revoke', authorize('admin'), ctrl.revokeAccess);
-router.post('/:id/remind', authorize('admin'), ctrl.sendReminder);
+router.post('/', authorize('superadmin', 'admin'), ctrl.grantAccess);
+router.put('/:id', authorize('superadmin', 'admin'), ctrl.updateAccess);
+router.put('/:id/revoke', authorize('superadmin', 'admin'), ctrl.revokeAccess);
+router.post('/:id/remind', authorize('superadmin', 'admin'), ctrl.sendReminder);
 
 module.exports = router;

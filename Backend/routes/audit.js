@@ -5,7 +5,7 @@ const { getAuditLogs, getAssetLogs, getCategories, exportAuditLogs } = require('
 const { protect, authorize } = require('../middleware/auth');
 
 router.use(protect);
-router.use(authorize('admin'));
+router.use(authorize('superadmin', 'admin')); // 👈 add superadmin
 
 router.get('/', getAuditLogs);
 router.get('/categories', getCategories);

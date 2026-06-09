@@ -20,22 +20,22 @@ router.get('/employees',  ctrl.getEmployees);
 router.get('/home-stats', ctrl.getHomeStats);
 
 // 📊 Report routes — admin only
-router.get('/report/excel', authorize('admin'), ctrl.exportExcelReport);
-router.get('/report/data',  authorize('admin'), ctrl.getReportData);
-router.get('/custom',       authorize('admin'), ctrl.getCustomLicenses);
+router.get('/report/excel', authorize('superadmin', 'admin'), ctrl.exportExcelReport);
+router.get('/report/data',  authorize('superadmin', 'admin'), ctrl.getReportData);
+router.get('/custom',       authorize('superadmin', 'admin'), ctrl.getCustomLicenses);
 
 // ── Admin-only write routes ───────────────────────────────────────────────────
-router.post('/',   authorize('admin'), ctrl.create);
+router.post('/',   authorize('superadmin', 'admin'), ctrl.create);
 
 // ── Assignment routes (static path first, then dynamic) ──────────────────────
 
 // DELETE /api/licenses/assignments/:id  — revoke a specific assignment
-router.delete('/assignments/:id', authorize('admin'), ctrl.revokeAssignment);
+router.delete('/assignments/:id', authorize('superadmin', 'admin'), ctrl.revokeAssignment);
 
 // ── Dynamic :id routes (LAST — so static paths above are matched first) ───────
 router.get   ('/:id',        ctrl.getAll);          // unused but safe fallback
-router.put   ('/:id',        authorize('admin'), ctrl.update);
-router.delete('/:id',        authorize('admin'), ctrl.remove);
-router.post  ('/:id/assign', authorize('admin'), ctrl.assign);
+router.put   ('/:id',        authorize('superadmin', 'admin'), ctrl.update);
+router.delete('/:id',        authorize('superadmin', 'admin'), ctrl.remove);
+router.post  ('/:id/assign', authorize('superadmin', 'admin'), ctrl.assign);
 
 module.exports = router;

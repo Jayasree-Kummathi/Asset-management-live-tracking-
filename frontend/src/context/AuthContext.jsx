@@ -1,21 +1,42 @@
+// AuthContext.jsx — refresh from /me on app start instead of trusting localStorage
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
-
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from localStorage on app start
+  // On app start — verify token is still valid and get fresh user data
   useEffect(() => {
-    const token    = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    if (token && userData) {
-      try { setUser(JSON.parse(userData)); } catch {}
-    }
-    setLoading(false);
+    const token = localStorage.getItem('token');
+    if (!token) { setLoading(false); return; }
+
+    // Always fetch fresh from /me so role/location changes are reflected immediately
+    fetch(`${API}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.user) {
+          setUser(data.user);
+          localStorage.setItem('user', JSON.stringify(data.user)); // keep in sync
+        } else {
+          // Token expired or invalid — clear session
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+        }
+      })
+      .catch(() => {
+        // Network error — fall back to cached user so app still loads
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          try { setUser(JSON.parse(userData)); } catch {}
+        }
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (email, password) => {

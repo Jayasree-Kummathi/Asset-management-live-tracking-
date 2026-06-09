@@ -283,17 +283,23 @@ function PendingLaptopWidget() {
   useEffect(() => { load(); }, [load]);
 
   const markResolved = async (empId, empName, status) => {
-    const labelMap = { collected: 'Collected', client_return: 'Client Return', no_laptop: 'No Laptop' };
-    if (!window.confirm(`Mark laptop as "${labelMap[status]}" for ${empName}? This will remove them from the pending list.`)) return;
-    try {
-      const token = localStorage.getItem('token');
-      await fetch(`${API}/employees/deleted/${empId}/laptop-status`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ laptop_status: status }),
-      });
-      load();
-    } catch (e) { alert('Update failed — check console.'); }
-  };
+  const labelMap = { collected: 'Collected', client_return: 'Client Return', no_laptop: 'No Laptop' };
+  if (!window.confirm(`Mark laptop as "${labelMap[status]}" for ${empName}? This will remove them from the pending list.`)) return;
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch(`${API}/employees/${empId}/laptop-status`, {  // ← fixed URL
+      method: 'PUT',                                                        // ← fixed method
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ laptop_status: status }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Update failed');
+    load();
+  } catch (e) {
+    console.error('markResolved error:', e);
+    alert('Update failed: ' + e.message);
+  }
+};
 
   const initials = (name) => (name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 

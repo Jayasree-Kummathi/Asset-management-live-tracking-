@@ -157,11 +157,12 @@ export default function Topbar() {
     catch (err) { console.error('Logout error:', err); }
   };
 
-  const rb = {
-    admin:    { label: 'Admin',    color: 'var(--accent)', bg: 'var(--accent-glow)' },
-    it_staff: { label: 'IT Staff', color: 'var(--green)',  bg: 'var(--green-bg)'   },
-    employee: { label: 'Employee', color: 'var(--amber)',  bg: 'var(--amber-bg)'   },
-  }[user?.role] || { label: 'Employee', color: 'var(--amber)', bg: 'var(--amber-bg)' };
+ const rb = {
+  superadmin: { label: 'Super Admin', color: 'var(--accent)', bg: 'var(--accent-glow)' },
+  admin:      { label: 'Admin',       color: 'var(--accent)', bg: 'var(--accent-glow)' },
+  it_staff:   { label: 'IT Staff',    color: 'var(--green)',  bg: 'var(--green-bg)'   },
+  employee:   { label: 'Employee',    color: 'var(--amber)',  bg: 'var(--amber-bg)'   },
+}[user?.role] || { label: 'Employee', color: 'var(--amber)', bg: 'var(--amber-bg)' };
 
   /* ── Group logs by Today / Yesterday / Older ── */
   const grouped = React.useMemo(() => {

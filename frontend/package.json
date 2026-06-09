@@ -8,6 +8,7 @@
     "@testing-library/user-event": "^13.5.0",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
+    "leaflet": "^1.9.4",
     "lucide-react": "^0.294.0",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",

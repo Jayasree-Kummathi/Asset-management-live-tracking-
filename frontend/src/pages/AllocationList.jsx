@@ -5,12 +5,11 @@ import StatusBadge from '../components/common/StatusBadge';
 import {
   Search, Download, RefreshCw, Eye,
   User, Laptop, Briefcase, Package, Wrench,
-  ArrowLeft, ChevronRight, Mail, CheckCircle, Loader
+  ArrowLeft, ChevronRight, Mail, CheckCircle, Loader, X, AlertTriangle, Send,
 } from 'lucide-react';
 import { toDateStr } from '../utils/dataUtils';
 import * as XLSX from 'xlsx';
 
-// ── Same apiFetch as AllocateLaptop ──────────────────────────────────────────
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 const apiFetch = async (path, opts = {}) => {
   const token = localStorage.getItem('token');
@@ -23,61 +22,261 @@ const apiFetch = async (path, opts = {}) => {
   return data;
 };
 
-// ── Audit Mail Button ─────────────────────────────────────────────────────────
-function AuditMailButton({ allocation }) {
-  const [state, setState] = useState('idle'); // idle | sending | sent | error
+// ── Bulk Audit Inner Page ─────────────────────────────────────────────────────
+function BulkAuditPage({ allocations, onBack }) {
+  const [state, setState] = useState('idle'); // idle | sending | done | error
+  const [result, setResult] = useState(null);
 
-  const handleSendAudit = async () => {
-    if (state === 'sending' || state === 'sent') return;
-    const confirmed = window.confirm(
-      `Send audit confirmation email to ${allocation.empName}?\n\n` +
-      `They will receive all asset details and be asked to confirm or reply.`
-    );
-    if (!confirmed) return;
+  const activeAllocations = allocations.filter(
+    a => a.status === 'Active' && (a.empEmail || a.emp_email)
+  );
+  const noEmailCount = allocations.filter(
+    a => a.status === 'Active' && !(a.empEmail || a.emp_email)
+  ).length;
 
+  const handleSend = async () => {
     setState('sending');
     try {
-      await apiFetch(`/allocations/${allocation.id}/send-audit-email`, { method: 'POST' });
-      setState('sent');
-      setTimeout(() => setState('idle'), 4000);
+      const data = await apiFetch('/allocations/send-audit-email/bulk', { method: 'POST' });
+      setResult({ sent: data.sent, failed: data.failed, total: data.total, failures: data.failures });
+      setState('done');
     } catch (e) {
-      console.error('Audit email error:', e.message);
+      setResult({ error: e.message });
       setState('error');
-      setTimeout(() => setState('idle'), 3000);
     }
   };
 
-  const styles = {
-    idle:    { background: 'rgba(79,142,247,.12)', color: 'var(--accent)',     border: '1px solid rgba(79,142,247,.3)' },
-    sending: { background: 'rgba(79,142,247,.08)', color: 'var(--text-muted)', border: '1px solid var(--border)', cursor: 'not-allowed' },
-    sent:    { background: 'rgba(34,197,94,.12)',  color: '#22c55e',           border: '1px solid rgba(34,197,94,.35)' },
-    error:   { background: 'rgba(239,68,68,.12)',  color: '#ef4444',           border: '1px solid rgba(239,68,68,.3)' },
-  };
-
-  const labels = {
-    idle:    <><Mail size={12} /> Audit</>,
-    sending: <><Loader size={12} style={{ animation: 'spin 1s linear infinite' }} /> Sending…</>,
-    sent:    <><CheckCircle size={12} /> Sent!</>,
-    error:   <>✕ Failed</>,
-  };
-
   return (
-    <>
-      <button
-        className="btn btn-sm"
-        title={state === 'sent' ? 'Audit email sent!' : `Send audit confirmation email to ${allocation.empName}`}
-        onClick={handleSendAudit}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 4,
-          fontSize: 11.5, padding: '3px 8px', borderRadius: 6,
-          fontWeight: 600, transition: 'all 0.2s',
-          ...styles[state],
-        }}
-      >
-        {labels[state]}
-      </button>
+    <div className="fade-in">
+      {/* ── Breadcrumb ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        marginBottom: 24, paddingBottom: 16,
+        borderBottom: '1px solid var(--border)',
+      }}>
+        <button className="btn btn-secondary" onClick={onBack}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <ArrowLeft size={15} /> Back to List
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)' }}>
+          <span style={{ cursor: 'pointer', color: 'var(--accent)' }} onClick={onBack}>Allocation List</span>
+          <ChevronRight size={13} />
+          <span style={{ color: 'var(--text)', fontWeight: 600 }}>Send Audit to All</span>
+        </div>
+      </div>
+
+      {/* ── Page title ── */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 10,
+            background: 'rgba(79,142,247,.12)', border: '1px solid rgba(79,142,247,.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Mail size={18} color="var(--accent)" />
+          </div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>Bulk Audit Email</h2>
+        </div>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginLeft: 48 }}>
+          Send audit confirmation emails to all active employees at once.
+        </p>
+      </div>
+
+      {/* ── Summary cards ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 20 }}>
+        <div className="card" style={{ textAlign: 'center', padding: '20px 16px' }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>
+            {activeAllocations.length}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Will Receive Email
+          </div>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: '20px 16px' }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: noEmailCount > 0 ? '#f59e0b' : 'var(--text-dim)', marginBottom: 4 }}>
+            {noEmailCount}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            No Email — Skipped
+          </div>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: '20px 16px' }}>
+          <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+            {allocations.filter(a => a.status === 'Active').length}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Total Active
+          </div>
+        </div>
+      </div>
+
+      {/* ── What this does ── */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, color: 'var(--accent)',
+          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12,
+        }}>
+          What this action does
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[
+            { icon: <Mail size={14} />, text: `Sends a personalised audit email to each of the ${activeAllocations.length} active employees who have an email address on record.` },
+            { icon: <CheckCircle size={14} />, text: 'Each email includes the employee\'s asset details and a unique confirmation link for them to verify or dispute.' },
+            { icon: <AlertTriangle size={14} color="#f59e0b" />, text: `${noEmailCount} employee(s) without a recorded email address will be automatically skipped.` },
+          ].map((item, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+              padding: '10px 12px', borderRadius: 8,
+              background: 'var(--surface2)', border: '1px solid var(--border)',
+            }}>
+              <span style={{ color: 'var(--accent)', marginTop: 1, flexShrink: 0 }}>{item.icon}</span>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.6 }}>{item.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Recipient preview table ── */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, color: 'var(--accent)',
+          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span>Recipients preview</span>
+          <span style={{ fontWeight: 500, color: 'var(--text-muted)', fontSize: 11, textTransform: 'none' }}>
+            {activeAllocations.length} eligible
+          </span>
+        </div>
+
+        {activeAllocations.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+            No active allocations with email addresses found.
+          </div>
+        ) : (
+          <div style={{ maxHeight: 320, overflowY: 'auto', borderRadius: 8, border: '1px solid var(--border)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: 'var(--surface2)', position: 'sticky', top: 0 }}>
+                  {['Employee', 'Asset ID', 'Email', 'Department'].map(h => (
+                    <th key={h} style={{
+                      padding: '8px 12px', textAlign: 'left', fontWeight: 600,
+                      fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase',
+                      letterSpacing: '0.06em', borderBottom: '1px solid var(--border)',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {activeAllocations.map((a, i) => (
+                  <tr key={a.id} style={{ borderBottom: i < activeAllocations.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <td style={{ padding: '9px 12px' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{a.empName}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.empId}</div>
+                    </td>
+                    <td style={{ padding: '9px 12px', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>
+                      {a.assetId}
+                    </td>
+                    <td style={{ padding: '9px 12px', fontSize: 12, color: 'var(--text-dim)' }}>
+                      {a.empEmail || a.emp_email}
+                    </td>
+                    <td style={{ padding: '9px 12px', fontSize: 12, color: 'var(--text-muted)' }}>
+                      {a.department || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Result banner (shown after send) ── */}
+      {state === 'done' && result && (
+        <div style={{
+          padding: '14px 18px', marginBottom: 16, borderRadius: 8,
+          background: result.failed > 0 ? 'rgba(251,191,36,.10)' : 'rgba(34,197,94,.10)',
+          border: `1px solid ${result.failed > 0 ? 'rgba(251,191,36,.3)' : 'rgba(34,197,94,.3)'}`,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          {result.failed > 0
+            ? <AlertTriangle size={16} color="#f59e0b" />
+            : <CheckCircle size={16} color="#22c55e" />}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 2 }}>
+              {result.failed > 0
+                ? `${result.sent} of ${result.total} emails sent — ${result.failed} failed`
+                : `All ${result.sent} audit emails sent successfully!`}
+            </div>
+            {result.failures?.length > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                Failed: {result.failures.map(f => f.email || f.empName).join(', ')}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {state === 'error' && (
+        <div style={{
+          padding: '14px 18px', marginBottom: 16, borderRadius: 8,
+          background: 'rgba(239,68,68,.10)', border: '1px solid rgba(239,68,68,.3)',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <X size={16} color="#ef4444" />
+          <span style={{ fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
+            {result?.error || 'Failed to send emails. Please try again.'}
+          </span>
+        </div>
+      )}
+
+      {/* ── Action buttons ── */}
+      <div style={{
+        display: 'flex', gap: 12, alignItems: 'center',
+        paddingTop: 20, borderTop: '1px solid var(--border)',
+      }}>
+        <button className="btn btn-secondary" onClick={onBack}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <ArrowLeft size={15} /> Back to List
+        </button>
+
+        {state === 'idle' && (
+          <button
+            className="btn btn-primary"
+            onClick={handleSend}
+            disabled={activeAllocations.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            <Send size={15} />
+            Send to All {activeAllocations.length} Employees
+          </button>
+        )}
+
+        {state === 'sending' && (
+          <button className="btn btn-primary" disabled
+            style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: 0.75, cursor: 'not-allowed' }}>
+            <Loader size={15} style={{ animation: 'spin 1s linear infinite' }} />
+            Sending emails…
+          </button>
+        )}
+
+        {state === 'done' && (
+          <button className="btn btn-secondary" onClick={onBack}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#22c55e', borderColor: 'rgba(34,197,94,.4)' }}>
+            <CheckCircle size={15} /> Done — Back to List
+          </button>
+        )}
+
+        {state === 'error' && (
+          <button className="btn btn-primary" onClick={handleSend}
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Send size={15} /> Retry
+          </button>
+        )}
+      </div>
+
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </>
+    </div>
   );
 }
 
@@ -121,16 +320,12 @@ function AllocationDetailPage({ allocation, asset, onBack }) {
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {allocation.status === 'Active' && <AuditMailButton allocation={allocation} />}
-            <StatusBadge status={allocation.status} />
-          </div>
+          <StatusBadge status={allocation.status} />
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
           <div className="card">
             <div style={{
               padding: '12px 14px',
@@ -138,8 +333,10 @@ function AllocationDetailPage({ allocation, asset, onBack }) {
               border: '1px solid rgba(79,142,247,.25)',
               borderRadius: 'var(--radius)',
             }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)',
-                textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+              <div style={{
+                fontSize: 10, fontWeight: 700, color: 'var(--accent)',
+                textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6,
+              }}>
                 Prepared &amp; Allocated By
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -304,7 +501,8 @@ function AllocationDetailPage({ allocation, asset, onBack }) {
       </div>
 
       <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border)', display: 'flex' }}>
-        <button className="btn btn-secondary" onClick={onBack}>
+        <button className="btn btn-secondary" onClick={onBack}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <ArrowLeft size={15} /> Back to Allocation List
         </button>
       </div>
@@ -337,9 +535,10 @@ function AllocationDetailPage({ allocation, asset, onBack }) {
 export default function AllocationList() {
   const { allocations, assets } = useApp();
   const navigate = useNavigate();
-  const [search,    setSearch]   = useState('');
-  const [filter,    setFilter]   = useState('Active');
-  const [viewAlloc, setViewAlloc] = useState(null);
+  const [search,        setSearch]       = useState('');
+  const [filter,        setFilter]       = useState('Active');
+  const [viewAlloc,     setViewAlloc]    = useState(null);  // detail page
+  const [showBulkAudit, setShowBulkAudit] = useState(false); // bulk audit page
   const listStateSnapshot = React.useRef({ search: '', filter: 'Active' });
 
   const filtered = allocations.filter(a => {
@@ -349,6 +548,10 @@ export default function AllocationList() {
     return matchFilter && matchSearch;
   });
 
+  const activeCount = allocations.filter(
+    a => a.status === 'Active' && (a.empEmail || a.emp_email)
+  ).length;
+
   const getAsset = (id) => assets.find(a => a.id === id);
 
   const handleExportToExcel = () => {
@@ -356,21 +559,21 @@ export default function AllocationList() {
     const exportData = filtered.map(a => {
       const asset = getAsset(a.assetId);
       return {
-        'Allocation ID':  a.id,
-        'Employee ID':    a.empId,
-        'Employee Name':  a.empName,
-        'Department':     a.department || '—',
-        'Asset ID':       a.assetId,
-        'Model':          asset?.model  || '—',
-        'Brand':          asset?.brand  || '—',
-        'Serial Number':  asset?.serial || '—',
-        'Project':        a.project     || '—',
-        'Client':         a.client      || '—',
-        'Allocation Date':toDateStr(a.allocationDate) || '—',
-        'Accessories':    a.accessories?.join(', ') || '—',
-        'Prepared By':    a.preparedBy || a.prepared_by || '—',
-        'Allocated By':   a.allocatedBy || a.allocated_by || '—',
-        'Status':         a.status,
+        'Allocation ID':   a.id,
+        'Employee ID':     a.empId,
+        'Employee Name':   a.empName,
+        'Department':      a.department || '—',
+        'Asset ID':        a.assetId,
+        'Model':           asset?.model  || '—',
+        'Brand':           asset?.brand  || '—',
+        'Serial Number':   asset?.serial || '—',
+        'Project':         a.project     || '—',
+        'Client':          a.client      || '—',
+        'Allocation Date': toDateStr(a.allocationDate) || '—',
+        'Accessories':     a.accessories?.join(', ') || '—',
+        'Prepared By':     a.preparedBy || a.prepared_by || '—',
+        'Allocated By':    a.allocatedBy || a.allocated_by || '—',
+        'Status':          a.status,
       };
     });
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -390,13 +593,31 @@ export default function AllocationList() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleOpenBulkAudit = () => {
+    listStateSnapshot.current = { search, filter };
+    setShowBulkAudit(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleBackToList = () => {
     const { search: prevSearch, filter: prevFilter } = listStateSnapshot.current;
     setSearch(prevSearch);
     setFilter(prevFilter);
     setViewAlloc(null);
+    setShowBulkAudit(false);
   };
 
+  // ── Render: Bulk Audit inner page ──
+  if (showBulkAudit) {
+    return (
+      <BulkAuditPage
+        allocations={allocations}
+        onBack={handleBackToList}
+      />
+    );
+  }
+
+  // ── Render: Detail inner page ──
   if (viewAlloc) {
     return (
       <AllocationDetailPage
@@ -407,6 +628,7 @@ export default function AllocationList() {
     );
   }
 
+  // ── Render: Main list ──
   return (
     <div className="fade-in">
       <div className="page-header page-header-row">
@@ -414,9 +636,35 @@ export default function AllocationList() {
           <h1>Allocation List</h1>
           <p>All current and past laptop allocations</p>
         </div>
-        <button className="btn btn-secondary" onClick={handleExportToExcel}>
-          <Download size={15} /> Export
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* ── Send Audit to All → navigates to inner page ── */}
+          <button
+            className="btn btn-secondary"
+            onClick={handleOpenBulkAudit}
+            disabled={activeCount === 0}
+            title={activeCount === 0
+              ? 'No active allocations with email addresses'
+              : `Send audit confirmation to all ${activeCount} active employees`}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Mail size={15} />
+            Send Audit to All
+            {activeCount > 0 && (
+              <span style={{
+                marginLeft: 2, padding: '1px 7px', borderRadius: 10,
+                background: 'var(--accent-glow)', color: 'var(--accent)',
+                fontSize: 11, fontWeight: 700, border: '1px solid rgba(79,142,247,.25)',
+              }}>
+                {activeCount}
+              </span>
+            )}
+          </button>
+
+          <button className="btn btn-secondary" onClick={handleExportToExcel}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Download size={15} /> Export
+          </button>
+        </div>
       </div>
 
       <div className="inv-toolbar">
@@ -481,17 +729,19 @@ export default function AllocationList() {
                     <td><StatusBadge status={a.status} /></td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button className="btn btn-sm btn-secondary" onClick={() => handleOpenView(a)}>
+                        <button className="btn btn-sm btn-secondary"
+                          style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                          onClick={() => handleOpenView(a)}>
                           <Eye size={12} /> View
                         </button>
                         {a.status === 'Active' && (
                           <>
-                            <AuditMailButton allocation={a} />
                             <button className="btn btn-sm btn-secondary"
                               onClick={() => navigate('/receive', { state: { allocationId: a.id } })}>
                               Receive
                             </button>
                             <button className="btn btn-sm btn-secondary"
+                              style={{ display: 'flex', alignItems: 'center', gap: 4 }}
                               onClick={() => navigate('/swap', { state: { allocationId: a.id } })}>
                               <RefreshCw size={12} /> Swap
                             </button>
@@ -506,6 +756,8 @@ export default function AllocationList() {
           </tbody>
         </table>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

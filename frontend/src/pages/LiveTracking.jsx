@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   MapPin, Wifi, WifiOff, Battery, BatteryCharging,
   Clock, RefreshCw, Search, X, Navigation,
@@ -313,9 +315,15 @@ export default function LiveTracking() {
   const { user } = useAuth();
   const navigate  = useNavigate();
 
-  useEffect(() => {
-    if (user && user.role !== 'admin') navigate('/dashboard');
-  }, [user, navigate]);
+useEffect(() => {
+  if (
+    user &&
+    !['admin', 'superadmin'].includes(user.role)
+  ) {
+    navigate('/dashboard');
+  }
+}, [user, navigate]);
+
 
   const [locations,   setLocations]   = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -504,7 +512,12 @@ export default function LiveTracking() {
   const lowBatCount  = locations.filter(l => l.battery_pct != null && l.battery_pct < 20 && l.is_online).length;
   const totalTodayH  = +(locations.reduce((s, l) => s + (l.today_online_hours || 0), 0)).toFixed(1);
 
-  if (!user || user.role !== 'admin') return null;
+  if (
+  !user ||
+  !['admin', 'superadmin'].includes(user.role)
+) {
+  return null;
+}
 
   const SortTh = ({ col, label }) => (
     <th onClick={() => setSortBy(col)} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>

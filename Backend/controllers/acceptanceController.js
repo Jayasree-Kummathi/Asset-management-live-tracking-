@@ -1,6 +1,7 @@
 const crypto     = require('crypto');
 const { query }  = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
+const { isSuperAdmin, getUserLocations } = require('../utils/locationFilter');
 
 // ── Generate a unique token ──────────────────────────────────────────────────
 const makeToken = () => crypto.randomBytes(32).toString('hex');
@@ -139,7 +140,29 @@ exports.submitAcceptance = asyncHandler(async (req, res) => {
 // @route  GET /api/acceptance   — admin/IT staff only
 exports.listAcceptances = asyncHandler(async (req, res) => {
   const { status } = req.query;
-  const where = status && status !== 'all' ? `WHERE t.status = '${status}'` : '';
+  const conditions = [];
+  const params     = [];
+  let   idx        = 1;
+
+  if (status && status !== 'all') {
+    conditions.push(`t.status = $${idx++}`);
+    params.push(status);
+  }
+
+  // ── Location isolation via asset location ─────────────────────────────────
+  // Scope by the asset's location (same approach as allocationController).
+  // Acceptance tokens are tied to an asset — filter on ast.location.
+  let joinClause = `LEFT JOIN assets ast ON ast.asset_id = t.asset_id`;
+
+  if (!isSuperAdmin(req.user)) {
+    const locs = getUserLocations(req.user);
+    if (locs && locs.length > 0) {
+      conditions.push(`ast.location = ANY($${idx++}::text[])`);
+      params.push(locs);
+    }
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const result = await query(
     `SELECT
@@ -148,9 +171,10 @@ exports.listAcceptances = asyncHandler(async (req, res) => {
        t.created_at, t.expires_at,
        ast.brand, ast.model
      FROM acceptance_tokens t
-     LEFT JOIN assets ast ON ast.asset_id = t.asset_id
+     ${joinClause}
      ${where}
-     ORDER BY t.created_at DESC`
+     ORDER BY t.created_at DESC`,
+    params
   );
 
   res.json({ success: true, count: result.rows.length, data: result.rows });

@@ -7,7 +7,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import Sidebar        from './components/layout/Sidebar';
 import Topbar         from './components/layout/Topbar';
 import ToastContainer from './components/common/Toast';
-import AIChatbot from './components/common/AIChatbot';
+import AIChatbot      from './components/common/AIChatbot';
 
 import Login             from './pages/Login';
 import Homepage          from './pages/Homepage';
@@ -33,11 +33,13 @@ import SoftwarePush      from './pages/Softwarepush';
 import AccessControl     from './pages/Accesscontrol';
 import LicenseManagement from './pages/Licensemanagement';
 import Employees         from './pages/Employees';
+import SmtpSettings      from './pages/SmtpSettings';
 import './styles/global.css';
 
 // ── Role guard ────────────────────────────────────────────────────────────────
 function RequireRole({ roles, children }) {
   const { user } = useAuth();
+  if (user?.role === 'superadmin') return children;
   if (!roles.includes(user?.role)) return <Navigate to="/dashboard" replace />;
   return children;
 }
@@ -72,7 +74,7 @@ function ProtectedLayout() {
               <Route path="/my-dashboard" element={<EmployeeDashboard />} />
               <Route path="/my-laptop"    element={<EmployeeDashboard />} />
 
-              {/* ── Admin + IT Staff ────────────────────────────────────── */}
+              {/* ── Admin + IT Staff + SuperAdmin ───────────────────────── */}
               <Route path="/dashboard" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <Dashboard />
@@ -118,20 +120,13 @@ function ProtectedLayout() {
                   <NetworkAssets />
                 </RequireRole>
               } />
-              <Route path="/live-tracking" element={
-                <RequireRole roles={['admin', 'it_staff']}>
-                  <LiveTracking />
-                </RequireRole>
-              } />
-
-              {/* ── Employees — Admin + IT Staff ────────────────────────── */}
               <Route path="/employees" element={
                 <RequireRole roles={['admin', 'it_staff']}>
                   <Employees />
                 </RequireRole>
               } />
 
-              {/* ── Admin only ──────────────────────────────────────────── */}
+              {/* ── Admin + SuperAdmin ──────────────────────────────────── */}
               <Route path="/repair" element={
                 <RequireRole roles={['admin']}>
                   <RepairAssets />
@@ -157,24 +152,38 @@ function ProtectedLayout() {
                   <ManageUsers />
                 </RequireRole>
               } />
-              <Route path="/agent-manager" element={
-                <RequireRole roles={['admin']}>
-                  <AgentManager />
-                </RequireRole>
-              } />
-              <Route path="/softwarepush" element={
-                <RequireRole roles={['admin']}>
-                  <SoftwarePush />
-                </RequireRole>
-              } />
               <Route path="/licenses" element={
                 <RequireRole roles={['admin']}>
                   <LicenseManagement />
                 </RequireRole>
               } />
+
+              {/* ── SuperAdmin ONLY ─────────────────────────────────────── */}
+              <Route path="/live-tracking" element={
+                <RequireRole roles={[]}>
+                  <LiveTracking />
+                </RequireRole>
+              } />
+              <Route path="/agent-manager" element={
+                <RequireRole roles={[]}>
+                  <AgentManager />
+                </RequireRole>
+              } />
+              <Route path="/softwarepush" element={
+                <RequireRole roles={[]}>
+                  <SoftwarePush />
+                </RequireRole>
+              } />
               <Route path="/access-control" element={
-                <RequireRole roles={['admin']}>
+                <RequireRole roles={[]}>
                   <AccessControl />
+                </RequireRole>
+              } />
+
+              {/* ── SMTP Settings — Admin + SuperAdmin ─────────────────── */}
+              <Route path="/settings/smtp" element={
+                <RequireRole roles={['admin']}>
+                  <SmtpSettings />
                 </RequireRole>
               } />
 
@@ -187,7 +196,6 @@ function ProtectedLayout() {
         </div>
         <ToastContainer />
       </div>
-      {/* AI Chatbot - appears on all pages when user is logged in */}
       <AIChatbot />
     </AppProvider>
   );

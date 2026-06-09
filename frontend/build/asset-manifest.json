@@ -1,14 +1,15 @@
 {
   "files": {
-    "main.css": "/static/css/main.760c196c.css",
-    "main.js": "/static/js/main.f1f5a1ae.js",
+    "main.css": "/static/css/main.e583e0a2.css",
+    "main.js": "/static/js/main.8567cdfb.js",
+    "static/media/home.png": "/static/media/home.88eb7417a0f879899e35.png",
     "static/media/mindteck_logo.png": "/static/media/mindteck_logo.b9ea81b80fc262f7a3df.png",
     "index.html": "/index.html",
-    "main.760c196c.css.map": "/static/css/main.760c196c.css.map",
-    "main.f1f5a1ae.js.map": "/static/js/main.f1f5a1ae.js.map"
+    "main.e583e0a2.css.map": "/static/css/main.e583e0a2.css.map",
+    "main.8567cdfb.js.map": "/static/js/main.8567cdfb.js.map"
   },
   "entrypoints": [
-    "static/css/main.760c196c.css",
-    "static/js/main.f1f5a1ae.js"
+    "static/css/main.e583e0a2.css",
+    "static/js/main.8567cdfb.js"
   ]
 }

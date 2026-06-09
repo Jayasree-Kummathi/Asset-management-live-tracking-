@@ -69,12 +69,12 @@ router.get('/team-members/:id', protect, async (req, res, next) => {
 router.post(
   '/team-members',
   protect,
-  authorize('admin', 'it_staff'),
+  authorize('superadmin', 'admin', 'it_staff'),
   [
     body('id').isInt().withMessage('Valid user ID is required'),
     body('name').notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Valid email is required'),
-    body('role').isIn(['admin', 'it_staff', 'employee']).withMessage('Invalid role'),
+    body('role').isIn(['superadmin', 'admin', 'it_staff', 'employee']),
     body('employee_id').optional().trim(),
     body('designation').optional().trim(),
     body('photo').optional(),
@@ -136,7 +136,7 @@ router.post(
 router.put(
   '/team-members/:id',
   protect,
-  authorize('admin', 'it_staff'),
+ authorize('superadmin', 'admin', 'it_staff'),
   [
     param('id').isInt().withMessage('Invalid user ID'),
     body('name').optional().notEmpty().withMessage('Name cannot be empty'),
@@ -201,7 +201,7 @@ router.put(
 router.delete(
   '/team-members/:id',
   protect,
-  authorize('admin', 'it_staff'),
+  authorize('superadmin', 'admin', 'it_staff'),
   [param('id').isInt().withMessage('Invalid user ID')],
   async (req, res, next) => {
     const errors = validationResult(req);
@@ -228,7 +228,7 @@ router.delete(
 router.post(
   '/team-members/reorder',
   protect,
-  authorize('admin', 'it_staff'),
+  authorize('superadmin', 'admin', 'it_staff'),
   [
     body('orders').isArray().withMessage('Orders must be an array'),
     body('orders.*.id').isInt().withMessage('Each item needs a valid ID'),

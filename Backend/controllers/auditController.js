@@ -1,79 +1,125 @@
 'use strict';
 // Backend/controllers/auditController.js
 
-const { query } = require('../config/db');
+const { query }    = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
+const { isSuperAdmin, applyLocationFilter, getUserLocations } = require('../utils/locationFilter');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal audit helper — called by other controllers to log actions
-// Usage: await audit('ACCESS_GRANTED', 'access_control', 'description', 'Admin')
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Internal audit helper ─────────────────────────────────────────────────────
 const audit = async (action, category, detail, performedBy) => {
   try {
     await query(
       `INSERT INTO audit_logs (action, category, detail, performed_by, created_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
+       VALUES ($1,$2,$3,$4,NOW())`,
       [action, category, detail, performedBy || 'System']
     );
-    console.log(`📝 [Audit] ${action} | ${category} | ${detail} | by: ${performedBy || 'System'}`);
   } catch (err) {
-    // Never crash the caller — audit failures are non-fatal
     console.error('❌ Audit log insert failed:', err.message);
   }
 };
-
-// ── Export audit helper IMMEDIATELY so other controllers get the function ─────
-// (Must be before any other exports.* assignments to avoid load-order issues)
 exports.audit = audit;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// @route  GET /api/audit
-// ─────────────────────────────────────────────────────────────────────────────
+// ── GET /api/audit ────────────────────────────────────────────────────────────
 exports.getAuditLogs = asyncHandler(async (req, res) => {
   const { category, search, page = 1, limit = 100 } = req.query;
-  const offset = (page - 1) * limit;
-  const params = [];
+  const offset     = (page - 1) * limit;
   const conditions = [];
-  let idx = 1;
+  const params     = [];
+  let   idx        = 1;
 
   if (category && category !== 'All') {
-    conditions.push(`category = $${idx++}`);
+    conditions.push(`l.category = $${idx++}`);
     params.push(category.toLowerCase());
   }
   if (search) {
     conditions.push(
-      `(action ILIKE $${idx} OR detail ILIKE $${idx} OR performed_by ILIKE $${idx})`
+      `(l.action ILIKE $${idx} OR l.detail ILIKE $${idx} OR l.performed_by ILIKE $${idx})`
     );
     params.push(`%${search}%`);
     idx++;
   }
 
+  // ── Location isolation ─────────────────────────────────────────────────────
+  // FIX 1: Use INNER JOIN instead of LEFT JOIN so unmatched assets are excluded
+  // FIX 2: Use ILIKE ANY(unnest()) to match locationFilter.js pattern
+  // FIX 3: NULL asset_id logs are only shown when they belong to the user's
+  //        location — matched via performed_by against users table.
+  //        This stops Bangalore logs leaking to USA admin.
+  let joinClause = '';
+  if (!isSuperAdmin(req.user)) {
+    const locs = getUserLocations(req.user);
+    if (locs) {
+      // LEFT JOIN assets so we can check location for asset-linked logs
+      // LEFT JOIN users so we can scope null-asset logs by performer's location
+      joinClause = `
+        LEFT JOIN assets a ON a.asset_id = l.asset_id
+        LEFT JOIN users  u ON LOWER(u.name) = LOWER(l.performed_by)
+      `;
+
+      // For asset-linked logs: asset must be in user's location(s)
+      // For non-asset logs:    performer must be in user's location(s)
+      // FIX: both branches use ILIKE ANY(unnest()) — consistent with locationFilter.js
+      conditions.push(`
+        (
+          (l.asset_id IS NOT NULL AND a.location ILIKE ANY(SELECT unnest($${idx}::text[])))
+          OR
+          (l.asset_id IS NULL     AND u.location ILIKE ANY(SELECT unnest($${idx}::text[])))
+        )
+      `);
+      params.push(locs);
+      idx++;
+    }
+  }
+
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const countRes = await query(`SELECT COUNT(*) FROM audit_logs ${where}`, params);
+  const countRes = await query(
+    `SELECT COUNT(*) FROM audit_logs l ${joinClause} ${where}`,
+    params
+  );
   const total = Number(countRes.rows[0].count);
 
   const result = await query(
-    `SELECT * FROM audit_logs ${where}
-     ORDER BY created_at DESC
+    `SELECT l.* FROM audit_logs l ${joinClause} ${where}
+     ORDER BY l.created_at DESC
      LIMIT $${idx} OFFSET $${idx + 1}`,
     [...params, limit, offset]
   );
 
   res.json({
     success: true,
-    count: result.rows.length,
+    count:       result.rows.length,
     total,
-    pages: Math.ceil(total / limit),
+    pages:       Math.ceil(total / limit),
     currentPage: Number(page),
-    data: result.rows,
+    data:        result.rows,
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// @route  GET /api/audit/asset/:assetId
-// ─────────────────────────────────────────────────────────────────────────────
+// ── GET /api/audit/asset/:assetId ─────────────────────────────────────────────
 exports.getAssetLogs = asyncHandler(async (req, res) => {
+  const locs = getUserLocations(req.user);
+
+  if (locs) {
+    // FIX: use ILIKE ANY(unnest()) consistent with locationFilter.js
+    const assetRes = await query(
+      `SELECT location FROM assets WHERE asset_id = $1`,
+      [req.params.assetId.toUpperCase()]
+    );
+    if (assetRes.rows.length) {
+      const assetLoc = assetRes.rows[0].location || '';
+      const matched  = locs.some(
+        l => assetLoc.toLowerCase() === l.toLowerCase()
+      );
+      if (!matched) {
+        return res.status(403).json({
+          success: false,
+          message: 'Asset is outside your managed locations',
+        });
+      }
+    }
+  }
+
   const result = await query(
     'SELECT * FROM audit_logs WHERE asset_id = $1 ORDER BY created_at DESC',
     [req.params.assetId.toUpperCase()]
@@ -81,9 +127,7 @@ exports.getAssetLogs = asyncHandler(async (req, res) => {
   res.json({ success: true, count: result.rows.length, data: result.rows });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// @route  GET /api/audit/categories
-// ─────────────────────────────────────────────────────────────────────────────
+// ── GET /api/audit/categories ─────────────────────────────────────────────────
 exports.getCategories = asyncHandler(async (req, res) => {
   const result = await query(`
     SELECT DISTINCT category, COUNT(*) as count
@@ -94,32 +138,42 @@ exports.getCategories = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result.rows });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// @route  GET /api/audit/export
-// ─────────────────────────────────────────────────────────────────────────────
+// ── GET /api/audit/export ─────────────────────────────────────────────────────
 exports.exportAuditLogs = asyncHandler(async (req, res) => {
   const { startDate, endDate, category } = req.query;
   const conditions = [];
-  const params = [];
-  let idx = 1;
+  const params     = [];
+  let   idx        = 1;
 
-  if (startDate) {
-    conditions.push(`created_at >= $${idx++}`);
-    params.push(startDate);
-  }
-  if (endDate) {
-    conditions.push(`created_at <= $${idx++} || ' 23:59:59'`);
-    params.push(endDate);
-  }
-  if (category && category !== 'all') {
-    conditions.push(`category = $${idx++}`);
-    params.push(category.toLowerCase());
+  if (startDate) { conditions.push(`l.created_at >= $${idx++}`);              params.push(startDate); }
+  if (endDate)   { conditions.push(`l.created_at <= ($${idx++} || ' 23:59:59')`); params.push(endDate); }
+  if (category && category !== 'all') { conditions.push(`l.category = $${idx++}`); params.push(category.toLowerCase()); }
+
+  // FIX: same pattern as getAuditLogs — ILIKE ANY + user join for null-asset logs
+  let joinClause = '';
+  if (!isSuperAdmin(req.user)) {
+    const locs = getUserLocations(req.user);
+    if (locs) {
+      joinClause = `
+        LEFT JOIN assets a ON a.asset_id = l.asset_id
+        LEFT JOIN users  u ON LOWER(u.name) = LOWER(l.performed_by)
+      `;
+      conditions.push(`
+        (
+          (l.asset_id IS NOT NULL AND a.location ILIKE ANY(SELECT unnest($${idx}::text[])))
+          OR
+          (l.asset_id IS NULL     AND u.location ILIKE ANY(SELECT unnest($${idx}::text[])))
+        )
+      `);
+      params.push(locs);
+      idx++;
+    }
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const result = await query(
-    `SELECT * FROM audit_logs ${where} ORDER BY created_at DESC`,
+    `SELECT l.* FROM audit_logs l ${joinClause} ${where} ORDER BY l.created_at DESC`,
     params
   );
 

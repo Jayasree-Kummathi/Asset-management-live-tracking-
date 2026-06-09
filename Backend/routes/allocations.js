@@ -10,25 +10,33 @@ const {
   swapLaptop,
   getMyAllocation,
   sendAuditEmail,
+  sendBulkAuditEmail,          // ← added
 } = require('../controllers/allocationController');
 
 const { protect, authorize } = require('../middleware/auth');
 
-router.use(protect);
+router.use(protect); // applies to every route below — no need to repeat it
 
 // ── Static / non-parameterised routes first ───────────────────────────────────
 router.route('/')
   .get(getAllocations)
-  .post(authorize('admin', 'it_staff'), allocateLaptop);
+  .post(authorize('superadmin', 'admin', 'it_staff'), allocateLaptop);
 
 router.get('/my', getMyAllocation);
 
-// ── Parameterised sub-resource routes (must come before /:id) ─────────────────
-router.put( '/:id/receive',          authorize('admin', 'it_staff'), receiveLaptop);
-router.put( '/:id/swap',             authorize('admin', 'it_staff'), swapLaptop);
-router.post('/:id/send-audit-email', authorize('admin', 'it_staff'), sendAuditEmail);
+// ── Bulk audit — must be before /:id so Express doesn't treat "bulk" as an ID ─
+router.post(
+  '/send-audit-email/bulk',
+  authorize('superadmin', 'admin', 'it_staff'),
+  sendBulkAuditEmail
+);
 
-// ── Generic /:id last — catches everything else ───────────────────────────────
+// ── Parameterised sub-resource routes ────────────────────────────────────────
+router.put( '/:id/receive',          authorize('superadmin', 'admin', 'it_staff'), receiveLaptop);
+router.put( '/:id/swap',             authorize('superadmin', 'admin', 'it_staff'), swapLaptop);
+router.post('/:id/send-audit-email', authorize('superadmin', 'admin', 'it_staff'), sendAuditEmail);
+
+// ── Generic /:id last ─────────────────────────────────────────────────────────
 router.get('/:id', getAllocation);
 
 module.exports = router;

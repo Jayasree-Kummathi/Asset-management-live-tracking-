@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import './Homepage.css';
 import logoSrc from '../assets/mindteck_logo.png';
-// import LaptopHeroCanvas from './Laptopherocanvas';
 
 const API = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
@@ -13,6 +12,33 @@ const fetchTeamMembers = async () => {
     const data = await res.json();
     return data.data || [];
   } catch { return []; }
+};
+
+// ── Fetch location-scoped live stats for logged-in staff ──────────────────────
+const fetchLocationStats = async (user) => {
+  if (!user || user.role === 'employee') return null;
+  try {
+    const token   = localStorage.getItem('token');
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const [assetsRes, allocRes, empRes] = await Promise.all([
+      fetch(`${API}/assets?limit=1`,                   { headers }),
+      fetch(`${API}/allocations?status=Active&limit=1`, { headers }),
+      fetch(`${API}/employees?limit=1`,                 { headers }),
+    ]);
+
+    const [assets, allocs, emps] = await Promise.all([
+      assetsRes.json(), allocRes.json(), empRes.json(),
+    ]);
+
+    return {
+      assets:       assets.total  || 0,
+      allocations:  allocs.total  || 0,
+      employees:    emps.total    || 0,
+      location:     user.location || 'Global',
+      isSuperAdmin: user.role === 'superadmin',
+    };
+  } catch { return null; }
 };
 
 const FEATURES = [
@@ -58,9 +84,10 @@ const TICKER_ITEMS = [
 ];
 
 const ROLE_COLOR = {
-  admin:    '#4f8ef7',
-  it_staff: '#2ecc71',
-  employee: '#94a3b8',
+  admin:      '#4f8ef7',
+  it_staff:   '#2ecc71',
+  superadmin: '#a78bfa',
+  employee:   '#94a3b8',
 };
 
 /* ── Magnetic Button ──────────────────────────────────────── */
@@ -158,7 +185,10 @@ function TeamCard({ member }) {
         </div>
       )}
       <div className="hp-team-dept" style={{ marginTop:4, opacity:0.55, fontSize:11.5 }}>
-        {member.role === 'admin' ? 'Administrator' : member.role === 'it_staff' ? 'IT Staff' : 'Employee'}
+        {member.role === 'superadmin' ? '🌐 Super Admin'
+          : member.role === 'admin'    ? 'Administrator'
+          : member.role === 'it_staff' ? 'IT Staff'
+          : 'Employee'}
       </div>
     </TiltCard>
   );
@@ -210,10 +240,10 @@ function AnimCounter({ target, suffix = '' }) {
   return <span ref={ref}>{val}{suffix}</span>;
 }
 
-/* ── TYPE WRITER for hero subtitle ───────────────────────── */
+/* ── TypeWriter ───────────────────────────────────────────── */
 function TypeWriter({ text, delay = 0 }) {
   const [displayed, setDisplayed] = useState('');
-  const [started, setStarted] = useState(false);
+  const [started,   setStarted]   = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setStarted(true), delay);
     return () => clearTimeout(t);
@@ -230,35 +260,46 @@ function TypeWriter({ text, delay = 0 }) {
   return <span>{displayed}<span className="typewriter-cursor">▋</span></span>;
 }
 
-/* ── Main ─────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════
+   MAIN
+═══════════════════════════════════════════════════════════ */
 export default function Homepage() {
   const { user }  = useAuth();
   const navigate  = useNavigate();
-  const [team, setTeam]           = useState([]);
-  const [headerScrolled, setHS]   = useState(false);
-  const [heroReady, setHeroReady] = useState(false);
+
+  const [team,          setTeam]          = useState([]);
+  const [headerScrolled, setHS]           = useState(false);
+  const [heroReady,      setHeroReady]    = useState(false);
+  const [liveStats,      setLiveStats]    = useState(null);
 
   const goTo = (path) => navigate(user ? path : '/login');
 
+  // ── Load team + stats ───────────────────────────────────
   useEffect(() => {
     const load = async () => {
       const members = await fetchTeamMembers();
       members.sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
       setTeam(members);
+
+      if (user) {
+        const stats = await fetchLocationStats(user);
+        setLiveStats(stats);
+      }
     };
     load();
     const iv = setInterval(load, 15000);
-    // Trigger hero text reveal after laptop starts opening (~2.2s)
-    const t = setTimeout(() => setHeroReady(true), 2200);
+    const t  = setTimeout(() => setHeroReady(true), 2200);
     return () => { clearInterval(iv); clearTimeout(t); };
-  }, []);
+  }, [user]);
 
+  // ── Scroll header ───────────────────────────────────────
   useEffect(() => {
     const fn = () => setHS(window.scrollY > 40);
     window.addEventListener('scroll', fn);
     return () => window.removeEventListener('scroll', fn);
   }, []);
 
+  // ── Reveal on scroll ────────────────────────────────────
   useEffect(() => {
     const obs = new IntersectionObserver(
       entries => entries.forEach((e, i) => {
@@ -269,6 +310,21 @@ export default function Homepage() {
     document.querySelectorAll('.hp-reveal').forEach(el => obs.observe(el));
     return () => obs.disconnect();
   }, [team]);
+
+  // ── Stats rows (live or fallback) ───────────────────────
+  const statsRows = liveStats
+    ? [
+        { label: 'Assets',         target: liveStats.assets,      suffix: '' },
+        { label: 'Active Allocs',  target: liveStats.allocations, suffix: '' },
+        { label: 'Employees',      target: liveStats.employees,   suffix: '' },
+        { label: 'Audit Coverage', target: 100,                   suffix: '%' },
+      ]
+    : [
+        { label: 'Assets Tracked',  target: 280, suffix: '' },
+        { label: 'Allocations',     target: 16,  suffix: '' },
+        { label: 'Network Devices', target: 47,  suffix: '' },
+        { label: 'Audit Coverage',  target: 100, suffix: '%' },
+      ];
 
   return (
     <div className="hp-root">
@@ -288,18 +344,10 @@ export default function Homepage() {
         </nav>
       </header>
 
-      {/* ══════════════════════════════════════════════
-          HERO — Laptop Canvas fills the background
-      ═══════════════════════════════════════════════ */}
+      {/* ── HERO ── */}
       <section className="hp-hero">
-
-        {/* 🎬 THE STAR: laptop opening animation */}
-        {/* <LaptopHeroCanvas /> */}
-
-        {/* Overlay gradient so text is readable */}
         <div className="hp-hero-overlay" />
 
-        {/* Hero content fades in after laptop opens */}
         <div className={`hp-hero-content ${heroReady ? 'hp-hero-content--ready' : ''}`}>
 
           <div className="hp-badge">
@@ -337,22 +385,47 @@ export default function Homepage() {
             <a href="#features" className="hp-btn hp-btn-outline">Explore Features</a>
           </div>
 
+          {/* Location banner — only for logged-in staff */}
+          {liveStats && (
+            <div style={{
+              display:        'inline-flex',
+              alignItems:     'center',
+              gap:            8,
+              margin:         '0 auto 18px',
+              padding:        '6px 18px',
+              background:     liveStats.isSuperAdmin
+                ? 'rgba(124,58,237,0.15)'
+                : 'rgba(46,204,113,0.10)',
+              border:         `1px solid ${liveStats.isSuperAdmin
+                ? 'rgba(167,139,250,0.3)'
+                : 'rgba(46,204,113,0.25)'}`,
+              borderRadius:   20,
+              fontSize:       12,
+              fontWeight:     600,
+              color:          liveStats.isSuperAdmin ? '#c4b5fd' : '#2ecc71',
+            }}>
+              <span>{liveStats.isSuperAdmin ? '🌐' : '📍'}</span>
+              {liveStats.isSuperAdmin
+                ? 'Showing global data — all countries'
+                : `Showing data for: ${liveStats.location}`}
+            </div>
+          )}
+
+          {/* Stats */}
           <div className="hp-stats">
-            {[
-              { label:'Assets Tracked',  target:280, suffix:''  },
-              { label:'Allocations',     target:16,  suffix:''  },
-              { label:'Network Devices', target:47,  suffix:''  },
-              { label:'Audit Coverage',  target:100, suffix:'%' },
-            ].map((s, i) => (
+            {statsRows.map((s, i) => (
               <React.Fragment key={s.label}>
                 {i > 0 && <div className="hp-stat-divider" />}
                 <div className="hp-stat">
-                  <div className="hp-stat-val"><AnimCounter target={s.target} suffix={s.suffix} /></div>
+                  <div className="hp-stat-val">
+                    <AnimCounter target={s.target} suffix={s.suffix} />
+                  </div>
                   <div className="hp-stat-label">{s.label}</div>
                 </div>
               </React.Fragment>
             ))}
           </div>
+
         </div>
       </section>
 
@@ -449,7 +522,9 @@ export default function Homepage() {
           <MagneticBtn className="hp-btn hp-btn-primary"
             style={{ fontSize:15, padding:'15px 36px', margin:'0 auto', display:'inline-flex' }}
             onClick={() => goTo('/dashboard')}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
             Launch AssetOps
           </MagneticBtn>
         </div>

@@ -49,12 +49,6 @@ const validateEmail = (email) => {
 };
 
 const sendMail = async (options) => {
-  // console.log('MAIL_HOST:', process.env.MAIL_HOST);
-  // console.log('MAIL_USER:', process.env.MAIL_USER);
-  // console.log('MAIL_PASS:', process.env.MAIL_PASS ? 'SET' : 'NOT SET');
-  // console.log('MAIL_PASS length:', process.env.MAIL_PASS.length);
-  // console.log('MAIL_PASS raw:', JSON.stringify(process.env.MAIL_PASS));
-
   if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
     console.log('📧 [Skipped — MAIL_USER/PASS not configured]');
     console.log('   To:', options.to, '| CC:', options.cc);
@@ -132,44 +126,24 @@ const buildPhotoAttachments = (photos = [], prefix = 'photo') => {
 };
 
 // ── Outlook-safe CSS ──────────────────────────────────────────────────────────
-// Rules:
-//   - NO display:flex  → replaced with <table> layouts everywhere
-//   - NO linear-gradient on block elements → solid bgcolor fallback on <td>
-//   - NO box-shadow → removed (Outlook ignores)
-//   - NO ::after pseudo → removed
-//   - NO border-radius on <table> → Outlook ignores overflow:hidden on tables
-//   - max-width on outer wrapper uses a wrapping 100%-wide table with a centred inner table
-//   - All widths capped at 660px via table width="660"
 const CSS = `
   *{box-sizing:border-box}
   body{margin:0;padding:0;background:#f0f4f8;font-family:'Segoe UI',Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased}
-
-  /* ── Logo bar ── */
   .logo-bar{background:#fff;border-bottom:3px solid #1d5c3c}
   .logo-tagline{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
-
-  /* ── Header banner ── */
   .hdr{padding:28px 32px 24px}
   .hdr-icon{font-size:32px;margin-bottom:10px;display:block}
   .hdr-title{color:#fff;font-size:24px;font-weight:800;margin:0 0 4px}
   .hdr-sub{color:#d1fae5;font-size:13px;margin:0}
-
-  /* ── Allocation ID badge ── */
   .alloc-badge{display:inline-block;background:#2a6f52;border:1px solid #3a8f6a;
                color:#fff;font-family:monospace;font-size:13px;font-weight:700;padding:5px 14px;
                border-radius:20px;margin-top:12px}
-
-  /* ── Body ── */
   .body{padding:28px 32px}
   .greeting{font-size:17px;color:#1e293b;margin:0 0 6px;font-weight:700}
   .intro{font-size:14px;color:#475569;margin:0 0 24px;line-height:1.75}
-
-  /* ── Section title ── */
   .sec{margin-bottom:20px}
   .sec-title{font-size:10px;font-weight:800;color:#1d5c3c;text-transform:uppercase;
              letter-spacing:.1em;margin:0 0 10px;border-bottom:2px solid #d1fae5;padding-bottom:4px}
-
-  /* ── Info table ── */
   .tbl{width:100%;border-collapse:collapse;margin-bottom:0;font-size:13.5px}
   .tbl td,.tbl th{padding:10px 14px;border:1px solid #e8edf2;vertical-align:middle}
   .tbl th{background:#f8fafc;font-size:10.5px;font-weight:700;color:#64748b;
@@ -179,8 +153,6 @@ const CSS = `
   .tbl td.mono{font-family:monospace;font-size:14px;color:#1d3461;font-weight:700}
   .tbl td.green{color:#059669;font-weight:700}
   .tbl td.red{color:#dc2626;font-weight:700}
-
-  /* ── Swap comparison ── */
   .cmp-outer{width:100%;border-collapse:collapse;margin-bottom:0}
   .cmp-outer td{width:50%;vertical-align:top;padding:0}
   .cmp-outer td:first-child{padding-right:6px}
@@ -192,16 +164,12 @@ const CSS = `
   .cmp-label{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase;margin-bottom:2px}
   .cmp-val{color:#1e293b;font-weight:700;font-size:13px}
   .cmp-val.mono{font-family:monospace;font-size:13px;color:#1d3461}
-
-  /* ── Badges ── */
   .badge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:11px;font-weight:700}
   .badge-green{background:#d1fae5;color:#065f46}
   .badge-blue{background:#dbeafe;color:#1e40af}
   .badge-amber{background:#fef3c7;color:#92400e}
   .badge-red{background:#fee2e2;color:#991b1b}
   .badge-purple{background:#ede9fe;color:#5b21b6}
-
-  /* ── Employee card ── */
   .emp-row{padding:14px 16px;background:#f8fafc;border:1px solid #e2e8f0;margin-bottom:20px}
   .emp-avatar{width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid #1d5c3c}
   .emp-avatar-placeholder{width:60px;height:60px;border-radius:50%;background:#1d5c3c;
@@ -209,38 +177,26 @@ const CSS = `
                            line-height:60px}
   .emp-info-name{font-size:16px;font-weight:700;color:#1e293b}
   .emp-info-sub{font-size:12px;color:#64748b;margin-top:2px}
-
-  /* ── Photos grid ── */
   .photos-section{background:#fffbea;border:1px solid #fde68a;padding:14px 16px;margin-bottom:20px}
   .photos-label{font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;margin-bottom:10px}
   .photos-grid img{width:120px;height:90px;object-fit:cover;border:2px solid #e2e8f0;
                    display:inline-block;margin:0 4px 4px 0}
-
-  /* ── Action button ── */
   .action-box{background:#f0fdf4;border:2px solid #16a34a;padding:20px 24px;margin:20px 0;text-align:center}
   .action-box-title{font-size:15px;font-weight:800;color:#14532d;margin-bottom:6px}
   .action-box-sub{font-size:13px;color:#166534;margin-bottom:16px;line-height:1.6}
   .action-btn{display:inline-block;background:#16a34a;color:#fff;text-decoration:none;
               padding:13px 36px;font-size:15px;font-weight:700}
   .action-note{font-size:11px;color:#6b7280;margin-top:12px}
-
-  /* ── Notice box ── */
   .notice{background:#fffbea;border-left:4px solid #f59e0b;padding:14px 18px;
           font-size:13px;color:#92400e;line-height:1.8;margin-bottom:20px}
   .notice ul{margin:8px 0 0 18px;padding:0}
   .notice li{margin-bottom:4px}
-
-  /* ── Status summary bar ── */
   .status-bar{width:100%;border-collapse:collapse;margin-bottom:20px}
   .status-bar td{width:33%;padding:4px}
   .status-item{background:#f8fafc;border:1px solid #e2e8f0;padding:12px;text-align:center}
   .status-item-label{font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:600;margin-bottom:4px}
   .status-item-val{font-size:15px;font-weight:800;color:#1e293b}
-
-  /* ── Divider ── */
   .divider{height:1px;background:#e2e8f0;margin:20px 0}
-
-  /* ── Footer ── */
   .footer{background:#f8fafc;padding:16px 32px;font-size:12px;color:#94a3b8;
           text-align:center;border-top:1px solid #e2e8f0}
   .footer a{color:#1d5c3c;text-decoration:none}
@@ -248,13 +204,20 @@ const CSS = `
 `;
 
 // ── Layout wrapper ─────────────────────────────────────────────────────────────
-// Outlook-safe:
-//   - Outer 100%-wide table centres the 660px inner table (replaces max-width on a div)
-//   - bgcolor="" attribute on header <td> is the Outlook fallback for CSS gradient
-//   - Logo bar uses nested table (no flex)
-//   - No box-shadow on wrapper
+// titleColor / subColor are auto-derived from the background:
+//   light backgrounds (#cdffcd, #ffd7b5) → dark text
+//   dark  backgrounds (everything else)  → white text
 const wrap = (hdrCssGradient, hdrBgColor, icon, title, sub, allocId, body, acceptLink = '') => {
   const sys = sysEmail();
+
+  // Detect light header backgrounds so we can flip text to dark
+  const lightBg = ['#cdffcd', '#ffd7b5', '#a8f0a8', '#ffb87a'].some(c =>
+    hdrBgColor.toLowerCase().includes(c.toLowerCase()) ||
+    hdrCssGradient.toLowerCase().includes(c.toLowerCase())
+  );
+  const titleColor = lightBg ? '#1a1a1a' : '#ffffff';
+  const subColor   = lightBg ? '#444444' : '#d1fae5';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -265,18 +228,13 @@ const wrap = (hdrCssGradient, hdrBgColor, icon, title, sub, allocId, body, accep
   <style>${CSS}</style>
 </head>
 <body style="margin:0;padding:0;background:#f0f4f8;">
-
-<!-- Outer wrapper table — centres content in all clients -->
 <table width="100%" cellpadding="0" cellspacing="0" border="0"
        style="background:#f0f4f8;padding:24px 0;">
   <tr>
     <td align="center" valign="top">
-
-      <!-- Inner content table — fixed 660px, collapses on mobile -->
       <table width="660" cellpadding="0" cellspacing="0" border="0"
              style="width:660px;max-width:100%;background:#ffffff;border:1px solid #e2e8f0;"
              class="wrap">
-
         <!-- Logo bar -->
         <tr>
           <td style="background:#ffffff;border-bottom:3px solid #1d5c3c;padding:0;">
@@ -294,14 +252,13 @@ const wrap = (hdrCssGradient, hdrBgColor, icon, title, sub, allocId, body, accep
             </table>
           </td>
         </tr>
-
         <!-- Header banner -->
         <tr>
           <td bgcolor="${hdrBgColor}"
               style="background:${hdrCssGradient};padding:28px 32px 24px;">
-            <span style="font-size:32px;margin-bottom:10px;display:block;">${icon}</span>
-            <p style="color:#fff;font-size:24px;font-weight:800;margin:0 0 4px;">${title}</p>
-            <p style="color:#d1fae5;font-size:13px;margin:0;">${sub}</p>
+            ${icon ? `<span style="font-size:32px;margin-bottom:10px;display:block;">${icon}</span>` : ''}
+            <p style="color:${titleColor};font-size:24px;font-weight:800;margin:0 0 4px;">${title}</p>
+            <p style="color:${subColor};font-size:13px;margin:0;">${sub}</p>
             ${allocId
               ? `<div style="display:inline-block;background:#2a6f52;border:1px solid #3a8f6a;
                             color:#fff;font-family:monospace;font-size:13px;font-weight:700;
@@ -309,7 +266,6 @@ const wrap = (hdrCssGradient, hdrBgColor, icon, title, sub, allocId, body, accep
               : ''}
           </td>
         </tr>
-
         <!-- Body -->
         <tr>
           <td style="padding:28px 32px;">
@@ -336,7 +292,6 @@ const wrap = (hdrCssGradient, hdrBgColor, icon, title, sub, allocId, body, accep
             </div>` : ''}
           </td>
         </tr>
-
         <!-- Footer -->
         <tr>
           <td style="background:#f8fafc;padding:16px 32px;font-size:12px;color:#94a3b8;
@@ -347,13 +302,10 @@ const wrap = (hdrCssGradient, hdrBgColor, icon, title, sub, allocId, body, accep
             ${sys ? `<a href="mailto:${sys}" style="color:#1d5c3c;text-decoration:none;">${sys}</a>` : ''}
           </td>
         </tr>
-
-      </table><!-- /inner 660px table -->
-
+      </table>
     </td>
   </tr>
-</table><!-- /outer wrapper -->
-
+</table>
 </body>
 </html>`;
 };
@@ -467,8 +419,6 @@ const swapCompareTable = (p) =>
 </table>`;
 
 // ── Status summary bar ────────────────────────────────────────────────────────
-// Each item: { label, value }
-// Rendered as a 3-column table — no flex, safe in Outlook
 const statusBar = (items) =>
 `<table cellpadding="0" cellspacing="0" border="0" width="100%"
        style="border-collapse:collapse;width:100%;margin-bottom:20px;">
@@ -485,15 +435,15 @@ const statusBar = (items) =>
 </table>`;
 
 // ── Header colour map ─────────────────────────────────────────────────────────
-// [ cssGradient ,  outlookSolidBgColor ]
-// Outlook reads bgcolor="" attribute on the <td>; modern clients get the CSS gradient.
 const HDR = {
-  allocate:  ['linear-gradient(135deg,#1d3461,#1d5c3c)', '#1d3461'],
-  receive:   ['linear-gradient(135deg,#16a34a,#15803d)',  '#16a34a'],  // light green
+  // CHANGED: allocate uses light green #cdffcd — text will auto-flip to dark
+  allocate:  ['linear-gradient(135deg,#cdffcd,#a8f0a8)', '#cdffcd'],
+  receive:   ['linear-gradient(135deg,#16a34a,#15803d)',  '#16a34a'],
   swap:      ['linear-gradient(135deg,#7c3aed,#5b21b6)',  '#7c3aed'],
   accessory: ['linear-gradient(135deg,#d97706,#b45309)',  '#d97706'],
   welcome:   ['linear-gradient(135deg,#0f172a,#1d3461)',  '#0f172a'],
-  reminder:  ['linear-gradient(135deg,#d97706,#b45309)',  '#d97706'],
+  // CHANGED: reminder uses light peach #ffd7b5 — text will auto-flip to dark
+  reminder:  ['linear-gradient(135deg,#ffd7b5,#ffb87a)',  '#ffd7b5'],
   blue:      ['linear-gradient(135deg,#2563eb,#1d4ed8)',  '#2563eb'],
   green:     ['linear-gradient(135deg,#059669,#047857)',  '#059669'],
 };
@@ -614,20 +564,20 @@ exports.sendAllocationEmail = async (p) => {
       contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
   }
-  // QR attachment removed — p.qrCodeBuffer is always null now
 
   await sendMail({
     to:          toList.join(', '),
     cc:          cc.join(', '),
     subject:     `[AssetOps] Laptop Allocated — ${p.assetId} | ${p.empName}`,
-    html:        wrap(...HDR.allocate, '&#128187;', 'Laptop Allocated', 'AssetOps · Mindteck IT', p.allocationId, body, p.acceptanceLink || ''),
+    // CHANGED: empty string for icon (removes laptop icon) and empty string for allocId (removes badge)
+    html:        wrap(...HDR.allocate, '', 'Laptop Allocated', 'AssetOps · Mindteck IT', '', body, p.acceptanceLink || ''),
     attachments,
   });
 };
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 2. RECEIVE / RETURN EMAIL  — light green background
+// 2. RECEIVE / RETURN EMAIL
 // ═══════════════════════════════════════════════════════════════════════════════
 exports.sendReceiveEmail = async (p) => {
   validateEmail(p.empEmail);
@@ -638,102 +588,343 @@ exports.sendReceiveEmail = async (p) => {
     Array.isArray(p.damagePhotos) ? p.damagePhotos : [], 'ret'
   );
 
-  const condLabel = p.newStatus === 'Stock'  ? 'Good — No Damage'
-                  : p.newStatus === 'Repair' ? 'Needs Repair'
-                  :                            'Damaged / Scrap';
-  const condBadge = p.newStatus === 'Stock'  ? 'badge-green'
-                  : p.newStatus === 'Repair' ? 'badge-amber'
-                  :                            'badge-red';
-  const stsBadge  = p.newStatus === 'Stock'  ? 'badge-green'
-                  : p.newStatus === 'Repair' ? 'badge-amber'
-                  :                            'badge-red';
+  // ── Returned accessories ───────────────────────────────────────────────────
+  const retAccList = Array.isArray(p.returnedAccessories) ? p.returnedAccessories : [];
 
-  // ── Light green body background wrapper ──────────────────────────────────
-  // Wraps the whole email body area in #f0fdf4 (Tailwind green-50)
-  // Uses an inner table so it works in Outlook without display:block tricks
-  const receiveBody = `
-    <!-- Light green body background -->
+  // ── Build full accessory list ─────────────────────────────────────────────
+  const STANDARD = ['Mouse', 'Laptop Bag'];
+  const dbAccessories = (() => {
+    const raw = p.accessories;
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === 'string') return raw.split(',').map(s => s.trim()).filter(Boolean);
+    return [];
+  })();
+  const extras   = dbAccessories.filter(
+    a => !STANDARD.some(s => a.toLowerCase().includes(s.toLowerCase()))
+  );
+  const allItems = [...STANDARD, ...extras];
+
+  // ── Accessory tick/circle helper ──────────────────────────────────────────
+  const accVal = (returned) => returned
+    ? `<span style="color:#059669;font-weight:700;font-size:14px;">&#10003;</span>&nbsp;<span style="color:#059669;font-weight:600;font-size:12.5px;">Received</span>`
+    : `<span style="color:#dc2626;font-size:13px;">&#10007;</span>&nbsp;<span style="color:#dc2626;font-weight:600;font-size:12.5px;">Not received</span>`;
+
+  // ── Condition / status values ─────────────────────────────────────────────
+  const isGood   = p.newStatus === 'Stock';
+  const isRepair = p.newStatus === 'Repair';
+  const isScrap  = p.newStatus === 'Scrap';
+
+  const statusLabel = isGood   ? 'Returned to Stock'
+                    : isRepair ? 'Sent to Repair'
+                    : isScrap  ? 'Scrapped'
+                    :             p.newStatus || 'Stock';
+
+  const statusBg    = isGood ? '#d1fae5' : isRepair ? '#fef3c7' : '#fee2e2';
+  const statusColor = isGood ? '#065f46' : isRepair ? '#92400e' : '#991b1b';
+  const statusBorder= isGood ? '#6ee7b7' : isRepair ? '#fcd34d' : '#fca5a5';
+
+  // ── Table row helpers ─────────────────────────────────────────────────────
+  const sHdr = (title) =>
+    `<tr>
+       <td colspan="2" bgcolor="#6b7280"
+           style="background:#6b7280;padding:10px 16px;font-size:12.5px;
+                  font-weight:700;color:#ffffff;text-align:center;
+                  letter-spacing:0.4px;font-family:Arial,Helvetica,sans-serif;">
+         ${title}
+       </td>
+     </tr>`;
+
+  const dRow = (label, value, even = false) =>
+    `<tr>
+       <td style="padding:9px 14px;font-size:12.5px;font-weight:600;color:#555555;
+                  width:38%;border-right:1px solid #dddddd;border-bottom:1px solid #dddddd;
+                  background:${even ? '#f9f9f9' : '#ffffff'};
+                  font-family:Arial,Helvetica,sans-serif;">
+         ${label}
+       </td>
+       <td style="padding:9px 14px;font-size:12.5px;color:#111111;font-weight:500;
+                  border-bottom:1px solid #dddddd;
+                  background:${even ? '#f9f9f9' : '#ffffff'};
+                  font-family:Arial,Helvetica,sans-serif;">
+         ${value || '&mdash;'}
+       </td>
+     </tr>`;
+
+  // ── Dynamic accessory rows ─────────────────────────────────────────────────
+  const accessoryRows = allItems.map((item, i) => {
+    const isReturned = retAccList.some(
+      a => a.toLowerCase().includes(item.toLowerCase())
+    );
+    return dRow(item, accVal(isReturned), (i + 4) % 2 !== 0);
+  }).join('');
+
+  // ── Accessory summary block ────────────────────────────────────────────────
+  const notReturnedItems = allItems.filter(
+    item => !retAccList.some(a => a.toLowerCase().includes(item.toLowerCase()))
+  );
+
+  const accessorySummaryBlock = (() => {
+    if (notReturnedItems.length === 0) {
+      return `
+      <table cellpadding="0" cellspacing="0" border="0" width="100%"
+             style="border-collapse:collapse;margin-top:12px;">
+        <tr>
+          <td bgcolor="#d1fae5"
+              style="background:#d1fae5;border-left:4px solid #059669;
+                     padding:10px 14px;font-size:12.5px;color:#065f46;
+                     font-weight:700;font-family:Arial,Helvetica,sans-serif;">
+            &#10003; All accessories received
+          </td>
+        </tr>
+      </table>`;
+    }
+    return `
     <table cellpadding="0" cellspacing="0" border="0" width="100%"
-           style="border-collapse:collapse;width:100%;background:#f0fdf4;
-                  border:1px solid #bbf7d0;border-radius:6px;margin-bottom:0;">
+           style="border-collapse:collapse;margin-top:12px;">
       <tr>
-        <td style="padding:24px;">
-
-          <p style="font-size:17px;color:#1e293b;margin:0 0 6px;font-weight:700;">
-            Dear ${p.empName},
-          </p>
-          <p style="font-size:14px;color:#475569;margin:0 0 20px;line-height:1.75;">
-            Your laptop has been successfully returned and processed by the IT team.
-            Please find the complete return summary below.
-          </p>
-
-          ${statusBar([
-            { label: 'Return Date', value: `<span style="font-size:13px;">${p.returnDate}</span>` },
-            { label: 'Condition',   value: `<span class="badge ${condBadge}" style="font-size:11px;">${condLabel}</span>` },
-            { label: 'Asset Status',value: `<span class="badge ${stsBadge}"  style="font-size:11px;">${p.newStatus}</span>` },
-          ])}
-
-          <!-- Employee -->
-          <div style="margin-bottom:20px;">
-            <div style="font-size:10px;font-weight:800;color:#15803d;text-transform:uppercase;
-                        letter-spacing:.1em;margin:0 0 10px;border-bottom:2px solid #86efac;
-                        padding-bottom:4px;">
-              &#128100; Employee
-            </div>
-            <table class="tbl" width="100%" cellpadding="0" cellspacing="0">
-              <tr><th>Full Name</th>   <td>${p.empName}</td></tr>
-              <tr><th>Employee ID</th> <td>${p.empId || '&mdash;'}</td></tr>
-              <tr><th>Department</th>  <td>${p.department || '&mdash;'}</td></tr>
-              <tr><th>Mobile</th>      <td>${p.mobileNo || '&mdash;'}</td></tr>
-            </table>
+        <td bgcolor="#fee2e2"
+            style="background:#fee2e2;border-left:4px solid #dc2626;
+                   padding:12px 14px;font-family:Arial,Helvetica,sans-serif;">
+          <div style="font-size:12.5px;font-weight:700;color:#991b1b;margin-bottom:6px;">
+            &#9888; Items Not Received
           </div>
-
-          <!-- Returned Laptop -->
-          <div style="margin-bottom:20px;">
-            <div style="font-size:10px;font-weight:800;color:#15803d;text-transform:uppercase;
-                        letter-spacing:.1em;margin:0 0 10px;border-bottom:2px solid #86efac;
-                        padding-bottom:4px;">
-              &#128187; Returned Laptop
-            </div>
-            <table class="tbl" width="100%" cellpadding="0" cellspacing="0">
-              <tr><th>Asset Number</th>  <td class="mono">${p.assetId}</td></tr>
-              <tr><th>Brand / Model</th> <td>${p.brand || ''} ${p.model || ''}</td></tr>
-              <tr><th>Serial Number</th> <td class="mono">${p.serial || '&mdash;'}</td></tr>
-              <tr><th>Processed By</th>  <td>${p.receivedBy}</td></tr>
-            </table>
+          <div style="font-size:12px;color:#7f1d1d;line-height:1.8;">
+            The following item(s) were <strong>not collected</strong> at the time of received:<br/>
+            ${notReturnedItems.map(item => `&bull;&nbsp;${item}`).join('<br/>')}
           </div>
-
-          ${p.damageDescription ? `
-          <div style="margin-bottom:20px;">
-            <div style="font-size:10px;font-weight:800;color:#15803d;text-transform:uppercase;
-                        letter-spacing:.1em;margin:0 0 10px;border-bottom:2px solid #86efac;
-                        padding-bottom:4px;">
-              &#9888;&#65039; Damage / Issue Notes
-            </div>
-            <div style="background:#fff7ed;border:1px solid #fed7aa;padding:14px 18px;
-                        font-size:14px;color:#7c2d12;line-height:1.8;">
-              ${p.damageDescription}
-            </div>
-          </div>` : ''}
-
-          ${retCids.length ? photoGrid(retCids, 'Laptop Condition at Return') : ''}
-
-          <div style="background:#dcfce7;border-left:4px solid #16a34a;padding:14px 18px;
-                      font-size:13px;color:#14532d;line-height:1.8;">
-            This email confirms the successful return of the above laptop.
-            Please retain it for your records. For any discrepancies contact
-            <a href="mailto:${sysEmail()}" style="color:#15803d;">${sysEmail()}</a>.
-          </div>
-
         </td>
       </tr>
     </table>`;
+  })();
+
+  // ── Return photos block ────────────────────────────────────────────────────
+  const photosBlock = retCids.length ? `
+    <table cellpadding="0" cellspacing="0" border="0" width="100%"
+           style="border-collapse:collapse;margin-top:20px;">
+      <tr>
+        <td bgcolor="#fffbea"
+            style="background:#fffbea;border:1px solid #fde68a;padding:14px 16px;">
+          <div style="font-size:11px;font-weight:700;color:#92400e;
+                      text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;
+                      font-family:Arial,Helvetica,sans-serif;">
+            &#128247; Laptop Condition Photos at Received
+          </div>
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              ${retCids.map(cid =>
+                `<td style="padding:0 4px 4px 0;">
+                   <img src="cid:${cid}" alt="Return photo" width="120" height="90"
+                        style="width:120px;height:90px;object-fit:cover;
+                               border:2px solid #e2e8f0;display:block;"/>
+                 </td>`
+              ).join('')}
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>` : '';
+
+  // ── Full HTML ──────────────────────────────────────────────────────────────
+  const html = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <!--[if mso]><xml><o:OfficeDocumentSettings><o:AllowPNG/>
+  <o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+  <title>Laptop Received</title>
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#f0f4f8;padding:28px 0;">
+  <tr>
+    <td align="center" valign="top">
+
+      <table width="620" cellpadding="0" cellspacing="0" border="0"
+             style="width:620px;max-width:100%;background:#ffffff;border:2px solid #cccccc;">
+
+        <!-- LOGO BAR -->
+        <tr>
+          <td bgcolor="#ffffff"
+              style="background:#ffffff;border-bottom:3px solid #1d5c3c;padding:14px 28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr valign="middle">
+                <td>
+                  <img src="cid:${LOGO_CID}" alt="Mindteck" height="40"
+                       style="height:40px;width:auto;display:block;border:0;outline:none;text-decoration:none;"/>
+                </td>
+                <td align="right"
+                    style="font-size:11px;color:#888888;font-family:Arial,Helvetica,sans-serif;
+                           text-align:right;white-space:nowrap;">
+                  IT Asset Management
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- TITLE SECTION -->
+        <tr>
+          <td bgcolor="#f8f8f8"
+              style="background:#f8f8f8;padding:20px 28px 16px;border-bottom:1px solid #dddddd;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px;">
+              <tr>
+                <td>&nbsp;</td>
+                <td align="right"
+                    style="font-size:12.5px;color:#444444;font-family:Arial,Helvetica,sans-serif;white-space:nowrap;">
+                  <strong>Date:</strong>&nbsp;${p.returnDate}
+                </td>
+              </tr>
+            </table>
+            <div style="font-size:30px;font-weight:900;color:#111111;text-align:center;
+                        font-family:Arial,Helvetica,sans-serif;letter-spacing:-0.5px;line-height:1.1;">
+              Laptop Received
+            </div>
+          </td>
+        </tr>
+
+        <!-- GREETING -->
+        <tr>
+          <td bgcolor="#ffffff" style="background:#ffffff;padding:16px 28px 10px;">
+            <div style="font-size:13.5px;font-weight:700;color:#111111;
+                        font-family:Arial,Helvetica,sans-serif;margin-bottom:4px;">
+              Dear Team,
+            </div>
+            <div style="font-size:12.5px;color:#444444;font-family:Arial,Helvetica,sans-serif;line-height:1.65;">
+              Below are the details of the laptop received from <strong>${p.empName}</strong>.
+            </div>
+          </td>
+        </tr>
+
+        <!-- MAIN DATA TABLE -->
+        <tr>
+          <td style="padding:0 28px 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="border-collapse:collapse;border:1px solid #dddddd;">
+
+              <!-- Employee Details -->
+              ${sHdr('Employee Details')}
+              ${dRow('Name',        p.empName,            false)}
+              ${dRow('Employee ID', p.empId || '&mdash;', true)}
+
+              <!-- Laptop Details -->
+              ${sHdr('Laptop Details')}
+              ${dRow('Asset Number',  p.assetId,                                                                      false)}
+              ${dRow('Serial Number', p.serial  || '&mdash;',                                                         true)}
+              ${dRow('Model',         `${(p.brand||'').trim()} ${(p.model||'').trim()}`.trim() || '&mdash;',           false)}
+              ${dRow('Configuration', p.config  || '&mdash;',                                                         true)}
+
+              <!-- Dynamic accessory rows -->
+              ${accessoryRows}
+
+              <!-- Laptop Condition -->
+              ${sHdr('Laptop Condition')}
+              <tr>
+                <td style="padding:9px 14px;font-size:12.5px;font-weight:600;color:#555555;
+                            width:38%;border-right:1px solid #dddddd;border-bottom:1px solid #dddddd;
+                            background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+                  Good
+                </td>
+                <td style="padding:9px 14px;border-bottom:1px solid #dddddd;background:#ffffff;">
+                  ${isGood
+                    ? `<span style="color:#059669;font-weight:700;font-size:14px;">&#10003;</span>
+                       &nbsp;<span style="color:#059669;font-weight:600;font-size:12.5px;">Good Condition</span>`
+                    : `<span style="color:#9ca3af;font-size:12.5px;font-family:Arial,sans-serif;">&mdash;</span>`
+                  }
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:9px 14px;font-size:12.5px;font-weight:600;color:#555555;
+                            width:38%;border-right:1px solid #dddddd;border-bottom:1px solid #dddddd;
+                            background:#f9f9f9;font-family:Arial,Helvetica,sans-serif;">
+                  Damage
+                </td>
+                <td style="padding:9px 14px;border-bottom:1px solid #dddddd;
+                            background:#f9f9f9;font-family:Arial,Helvetica,sans-serif;">
+                  ${!isGood && p.damageDescription
+                    ? `<span style="color:#dc2626;font-weight:600;font-size:12.5px;">${p.damageDescription}</span>`
+                    : isRepair
+                      ? `<span style="color:#d97706;font-weight:600;font-size:12.5px;">Needs Repair</span>`
+                    : isScrap
+                      ? `<span style="color:#dc2626;font-weight:600;font-size:12.5px;">Damaged / Unrepairable</span>`
+                    : `<span style="color:#9ca3af;font-size:12.5px;">&mdash;</span>`
+                  }
+                </td>
+              </tr>
+
+              <!-- Asset Status -->
+              ${sHdr('Asset Status')}
+              <tr>
+                <td style="padding:9px 14px;font-size:12.5px;font-weight:600;color:#555555;
+                            width:38%;border-right:1px solid #dddddd;border-bottom:1px solid #dddddd;
+                            background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+                  Status
+                </td>
+                <td style="padding:9px 14px;border-bottom:1px solid #dddddd;background:#ffffff;">
+                  <span style="display:inline;background:${statusBg};color:${statusColor};
+                               font-size:12px;font-weight:700;padding:3px 12px;
+                               border:1px solid ${statusBorder};font-family:Arial,Helvetica,sans-serif;">
+                    ${statusLabel}
+                  </span>
+                </td>
+              </tr>
+
+              <!-- Received By -->
+              ${sHdr('Received By')}
+              <tr>
+                <td colspan="2"
+                    style="padding:11px 16px;font-size:13px;font-weight:700;
+                           color:#111111;background:#ffffff;font-family:Arial,Helvetica,sans-serif;">
+                  ${p.receivedBy || 'IT Staff'}
+                  ${p.receivedByEmail
+                    ? `&nbsp;&nbsp;<span style="font-size:12px;font-weight:400;color:#555555;font-family:Arial,sans-serif;">
+                         (${p.receivedByEmail})
+                       </span>`
+                    : ''
+                  }
+                </td>
+              </tr>
+
+            </table>
+
+            <!-- Accessory summary -->
+            ${accessorySummaryBlock}
+
+            <!-- Return condition photos -->
+            ${photosBlock}
+
+          </td>
+        </tr>
+
+        <!-- FOOTER -->
+        <tr>
+          <td bgcolor="#374151"
+              style="background:#374151;padding:14px 28px;text-align:center;">
+            <div style="font-size:11.5px;color:#d1d5db;font-family:Arial,Helvetica,sans-serif;line-height:1.8;">
+              <strong style="color:#ffffff;">Mindteck IT Asset Management</strong>
+              &nbsp;&bull;&nbsp; AssetOps
+              ${sysEmail()
+                ? `&nbsp;&bull;&nbsp;
+                   <a href="mailto:${sysEmail()}" style="color:#86efac;text-decoration:none;">${sysEmail()}</a>`
+                : ''}
+            </div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
 
   await sendMail({
     to:          p.empEmail,
     cc:          cc.join(', '),
-    subject:     `[AssetOps] Laptop Returned — ${p.assetId} | ${p.empName}`,
-    html:        wrap(...HDR.receive, '&#128229;', 'Laptop Returned', 'AssetOps · Mindteck IT', '', receiveBody),
+    subject:     `[AssetOps] Laptop Received — ${p.assetId} | ${p.empName}`,
+    html,
     attachments: [...getLogoAttachment(), ...retAtts],
   });
 };
@@ -787,7 +978,6 @@ exports.sendSwapEmail = async (p) => {
       <a href="mailto:${sysEmail()}">${sysEmail()}</a>.
     </div>`;
 
-  // QR attachment removed — p.qrCodeBuffer is always null now
   const attachments = [...getLogoAttachment(), ...photoAtts, ...issueAtts];
 
   await sendMail({
@@ -1032,7 +1222,8 @@ exports.sendAcceptanceReminderEmail = async (p) => {
     to:          p.empEmail,
     cc:          cc.join(', '),
     subject:     `[AssetOps] ${urgencyLabel.replace(/&#\d+;/g, '')} — Laptop Acceptance Pending | ${p.assetId}`,
-    html:        wrap(...HDR.reminder, '&#9200;', 'Acceptance Pending', 'AssetOps · Mindteck IT', '', body, p.acceptanceLink || ''),
+    // CHANGED: empty string for icon (removes clock icon + its background box), #ffd7b5 header via HDR.reminder
+    html:        wrap(...HDR.reminder, '', 'Acceptance Pending', 'AssetOps · Mindteck IT', '', body, p.acceptanceLink || ''),
     attachments: getLogoAttachment(),
   });
 };
@@ -1081,17 +1272,12 @@ exports.sendAuditEmail = async ({
   <title>Asset Audit Confirmation</title>
 </head>
 <body style="margin:0;padding:0;background:#f0f4f9;font-family:'Segoe UI',Arial,sans-serif;">
-
-<!-- Outer centering table -->
 <table width="100%" cellpadding="0" cellspacing="0" border="0"
        style="background:#f0f4f9;padding:36px 0;">
   <tr>
     <td align="center" valign="top">
-
-      <!-- Inner 620px content table -->
       <table width="620" cellpadding="0" cellspacing="0" border="0"
              style="width:620px;max-width:100%;background:#ffffff;border:1px solid #dde8ff;">
-
         <!-- Header -->
         <tr>
           <td bgcolor="#1a56db"
@@ -1120,7 +1306,6 @@ exports.sendAuditEmail = async ({
             </table>
           </td>
         </tr>
-
         <!-- Logo bar -->
         <tr>
           <td style="padding:14px 36px;border-bottom:1px solid #eef2f7;background:#fff;">
@@ -1128,7 +1313,6 @@ exports.sendAuditEmail = async ({
                  style="height:32px;width:auto;display:block;"/>
           </td>
         </tr>
-
         <!-- Greeting -->
         <tr>
           <td style="padding:28px 36px 0;">
@@ -1146,7 +1330,6 @@ exports.sendAuditEmail = async ({
             </p>
           </td>
         </tr>
-
         <!-- Asset Details -->
         <tr>
           <td style="padding:22px 36px 0;">
@@ -1173,7 +1356,6 @@ exports.sendAuditEmail = async ({
             </div>
           </td>
         </tr>
-
         <!-- Accessories -->
         <tr>
           <td style="padding:16px 36px 0;">
@@ -1191,7 +1373,6 @@ exports.sendAuditEmail = async ({
             </div>
           </td>
         </tr>
-
         <!-- CTA Button -->
         <tr>
           <td style="padding:30px 36px 0;text-align:center;">
@@ -1211,7 +1392,6 @@ exports.sendAuditEmail = async ({
             }
           </td>
         </tr>
-
         <!-- Warning Notice -->
         <tr>
           <td style="padding:22px 36px 0;">
@@ -1225,14 +1405,12 @@ exports.sendAuditEmail = async ({
             </div>
           </td>
         </tr>
-
         <!-- Divider -->
         <tr>
           <td style="padding:24px 36px 0;">
             <hr style="border:none;border-top:1px solid #eef2f7;margin:0;"/>
           </td>
         </tr>
-
         <!-- Footer -->
         <tr>
           <td style="padding:18px 36px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;">
@@ -1251,13 +1429,10 @@ exports.sendAuditEmail = async ({
             </p>
           </td>
         </tr>
-
-      </table><!-- /inner 620px table -->
-
+      </table>
     </td>
   </tr>
-</table><!-- /outer wrapper -->
-
+</table>
 </body>
 </html>`;
 

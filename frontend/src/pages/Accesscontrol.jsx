@@ -865,8 +865,14 @@ export default function AccessControl() {
   const [showExportPage, setShowExportPage] = useState(false);
   
   const listStateSnapshot = React.useRef({ search:'', filter:'all', typeFilter:'all' });
-
-  useEffect(() => { if (user && user.role !== 'admin') navigate('/dashboard'); }, [user, navigate]);
+useEffect(() => {
+  if (
+    user &&
+    !['admin', 'superadmin'].includes(user.role)
+  ) {
+    navigate('/dashboard');
+  }
+}, [user, navigate]);
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);

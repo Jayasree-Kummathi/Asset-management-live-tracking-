@@ -9,10 +9,13 @@
   --surface2: #f1f3f5;
   --border: #dee2e6;
   --border2: #ced4da;
-  --text: #1a1a2e;        /* Darker, richer black */
-  --text-muted: #2d2d3f;   /* Much darker than before - was too light */
-  --text-dim: #3a3a4f;     /* Darker for better contrast */
-  --text-light: #5a5a70;   /* For subtle hints but still readable */
+  --border-focus: #4f8ef7;
+  --border-hover: #e11d48;     /* Rose/red color on hover */
+  --border-hover-light: #f43f5e; /* Lighter rose for subtle effect */
+  --text: #1a1a2e;
+  --text-muted: #2d2d3f;
+  --text-dim: #3a3a4f;
+  --text-light: #5a5a70;
   --accent: #4f8ef7;
   --accent-glow: rgba(79,142,247,0.12);
   --accent2: #6c5ce7;
@@ -20,6 +23,8 @@
   --green-bg: rgba(16,185,129,0.1);
   --red: #ef4444;
   --red-bg: rgba(239,68,68,0.1);
+  --rose: #e11d48;
+  --rose-glow: rgba(225,29,72,0.12);
   --amber: #f59e0b;
   --amber-bg: rgba(245,158,11,0.1);
   --purple: #8b5cf6;
@@ -41,10 +46,13 @@
   --surface2: #1c2030;
   --border: #252a38;
   --border2: #2e3548;
-  --text: #f0f2f8;        /* Crisp white, not gray */
-  --text-muted: #cbd5e6;   /* Much brighter than before */
-  --text-dim: #a8b4d4;     /* Better contrast */
-  --text-light: #8a97b8;   /* Still readable */
+  --border-focus: #4f8ef7;
+  --border-hover: #f43f5e;     /* Rose/red color on hover for dark mode */
+  --border-hover-light: #fb7185;
+  --text: #f0f2f8;
+  --text-muted: #cbd5e6;
+  --text-dim: #a8b4d4;
+  --text-light: #8a97b8;
   --accent: #4f8ef7;
   --accent-glow: rgba(79,142,247,0.18);
   --accent2: #7c6af7;
@@ -52,6 +60,8 @@
   --green-bg: rgba(52,211,153,0.1);
   --red: #f87171;
   --red-bg: rgba(248,113,113,0.1);
+  --rose: #f43f5e;
+  --rose-glow: rgba(244,63,94,0.15);
   --amber: #fbbf24;
   --amber-bg: rgba(251,191,36,0.1);
   --purple: #a78bfa;
@@ -62,7 +72,6 @@
 
 html, body, #root { height: 100%; }
 
-/* Body - Increased font size with crisp text */
 body {
   font-family: var(--font);
   background: var(--bg);
@@ -76,7 +85,6 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Global paragraph styling - darker and crisp */
 p {
   font-size: 16px;
   color: var(--text);
@@ -95,6 +103,7 @@ p {
 @keyframes slideIn { from { transform: translateX(-12px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes borderPulse { 0%,100% { border-color: var(--border2); } 50% { border-color: var(--border-hover); } }
 
 .fade-in { animation: fadeIn 0.35s ease forwards; }
 
@@ -120,7 +129,7 @@ p {
 }
 .card:hover { border-color: var(--border2); box-shadow: var(--shadow-sm); }
 
-/* Buttons - Increased font size */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -147,9 +156,12 @@ p {
 .btn-icon { padding: 8px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim); }
 .btn-icon:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 
-/* Form elements */
+/* ============================================ */
+/* IMPROVED FORM ELEMENTS - ROSE HOVER + BLUE FOCUS */
+/* ============================================ */
+
 .form-group { margin-bottom: 18px; }
-/* Form labels - Darker and readable */
+
 .form-label {
   display: block;
   margin-bottom: 6px;
@@ -159,28 +171,66 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-/* Form inputs - Increased font size */
+
+/* Base input styles */
 .form-input, .form-select, .form-textarea {
   width: 100%;
   padding: 10px 14px;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border2);
   border-radius: var(--radius);
   color: var(--text);
   font-family: var(--font);
   font-size: 15px;
   font-weight: 450;
-  transition: all var(--transition);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
   appearance: none;
 }
-.form-input:focus, .form-select:focus, .form-textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-  outline: none;
+
+/* HOVER STATE - Rose/Red color */
+.form-input:hover, .form-select:hover, .form-textarea:hover {
+  border-color: var(--border-hover);
+  background: var(--bg);
+  box-shadow: 0 0 0 2px var(--rose-glow);
+  transform: translateY(-1px);
 }
-.form-input::placeholder, .form-textarea::placeholder { color: var(--text-light); opacity: 0.7; }
-.form-textarea { resize: vertical; min-height: 80px; }
+
+/* FOCUS STATE - Blue color (accent) */
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  background: var(--bg);
+  transform: translateY(0);
+}
+
+/* Active/typing state - keep blue */
+.form-input:active, .form-select:active, .form-textarea:active {
+  border-color: var(--border-focus);
+}
+
+/* Disabled state */
+.form-input:disabled, .form-select:disabled, .form-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--surface2);
+  transform: none;
+}
+.form-input:disabled:hover {
+  border-color: var(--border2);
+  box-shadow: none;
+}
+
+.form-input::placeholder, .form-textarea::placeholder { 
+  color: var(--text-light); 
+  opacity: 0.7; 
+}
+
+.form-textarea { 
+  resize: vertical; 
+  min-height: 80px; 
+}
+
 .form-select { 
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); 
   background-repeat: no-repeat; 
@@ -188,6 +238,126 @@ p {
   padding-right: 36px; 
 }
 .form-select option { background: var(--surface); color: var(--text); }
+
+/* ============================================ */
+/* SEARCH BAR - SPECIAL ROSE HOVER + BLUE FOCUS */
+/* ============================================ */
+
+.search-bar { 
+  position: relative; 
+  flex: 1;
+  max-width: 360px;
+}
+
+.search-bar .form-input { 
+  padding-left: 38px; 
+  background: var(--bg);
+  border: 1.5px solid var(--border2);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Search bar hover - Rose/Red */
+.search-bar .form-input:hover {
+  border-color: var(--border-hover);
+  background: var(--bg);
+  box-shadow: 0 0 0 3px var(--rose-glow);
+  transform: translateY(-1px);
+}
+
+/* Search bar focus - Blue */
+.search-bar .form-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  transform: translateY(0);
+}
+
+/* Search icon color change on hover */
+.search-bar:hover svg {
+  color: var(--border-hover);
+  transition: color 0.2s ease;
+}
+
+.search-bar svg { 
+  position: absolute; 
+  left: 12px; 
+  top: 50%; 
+  transform: translateY(-50%); 
+  color: var(--text-muted); 
+  pointer-events: none; 
+  transition: color 0.2s ease;
+}
+
+/* Search bar focus-within container effect */
+.search-bar:focus-within {
+  transform: scale(1.01);
+  transition: transform 0.2s ease;
+}
+
+/* ============================================ */
+/* INPUT VARIATIONS */
+/* ============================================ */
+
+/* Error state for inputs - Red */
+.form-input.error, .form-select.error, .form-textarea.error {
+  border-color: var(--red);
+  background: var(--red-bg);
+}
+.form-input.error:hover, .form-select.error:hover, .form-textarea.error:hover {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.2);
+}
+.form-input.error:focus, .form-select.error:focus, .form-textarea.error:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.25);
+}
+
+/* Success state for inputs - Green */
+.form-input.success, .form-select.success, .form-textarea.success {
+  border-color: var(--green);
+}
+.form-input.success:hover, .form-select.success:hover, .form-textarea.success:hover {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.2);
+}
+.form-input.success:focus, .form-select.success:focus, .form-textarea.success:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.25);
+}
+
+/* Warning state for inputs - Amber */
+.form-input.warning, .form-select.warning, .form-textarea.warning {
+  border-color: var(--amber);
+}
+.form-input.warning:hover, .form-select.warning:hover, .form-textarea.warning:hover {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(245,158,11,0.2);
+}
+
+/* Read-only inputs */
+.form-input[readonly], .form-select[readonly], .form-textarea[readonly] {
+  background: var(--surface2);
+  cursor: default;
+  opacity: 0.8;
+}
+.form-input[readonly]:hover {
+  border-color: var(--border2);
+  box-shadow: none;
+  transform: none;
+}
+
+/* Inv toolbar search area */
+.inv-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+/* ============================================ */
+/* END IMPROVED FORM ELEMENTS */
+/* ============================================ */
 
 /* Grid */
 .form-grid { display: grid; gap: 16px; }
@@ -197,11 +367,10 @@ p {
   .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; }
 }
 
-/* Tables - Darker text for better readability */
+/* Tables */
 .table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface); }
 table { width: 100%; border-collapse: collapse; }
 thead { background: var(--surface2); }
-/* Table headers - Darker and crisp */
 th { 
   padding: 12px 16px; 
   text-align: left; 
@@ -213,7 +382,6 @@ th {
   border-bottom: 2px solid var(--border); 
   white-space: nowrap; 
 }
-/* Table data - Much darker for readability */
 td { 
   padding: 13px 16px; 
   font-size: 15px; 
@@ -225,7 +393,7 @@ tr:last-child td { border-bottom: none; }
 tbody tr { transition: background var(--transition); }
 tbody tr:hover { background: var(--surface2); }
 
-/* Badges - Better contrast */
+/* Badges */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -242,6 +410,7 @@ tbody tr:hover { background: var(--surface2); }
 .badge-amber { background: var(--amber-bg); color: var(--amber); }
 .badge-purple { background: var(--purple-bg); color: var(--purple); }
 .badge-gray { background: rgba(107,116,144,0.15); color: var(--text-muted); }
+.badge-rose { background: var(--rose-glow); color: var(--rose); }
 
 /* Page header */
 .page-header { margin-bottom: 28px; }
@@ -251,7 +420,6 @@ tbody tr:hover { background: var(--surface2); }
   color: var(--text); 
   margin-bottom: 6px; 
 }
-/* Page description - Darker and more readable */
 .page-header p {
   color: var(--text-muted);
   font-size: 16px;
@@ -260,7 +428,7 @@ tbody tr:hover { background: var(--surface2); }
 }
 .page-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 
-/* Radio group - Increased font size */
+/* Radio group */
 .radio-group { display: flex; gap: 12px; flex-wrap: wrap; }
 .radio-option {
   display: flex;
@@ -279,7 +447,7 @@ tbody tr:hover { background: var(--surface2); }
 .radio-option.selected { border-color: var(--accent); background: var(--accent-glow); color: var(--accent); }
 .radio-option input { display: none; }
 
-/* Toggle - Increased font size */
+/* Toggle group */
 .toggle-group { display: flex; gap: 8px; }
 .toggle-btn { 
   padding: 7px 14px; 
@@ -306,7 +474,7 @@ tbody tr:hover { background: var(--surface2); }
   border-bottom: 1px solid var(--border); 
 }
 
-/* Info row - Darker text */
+/* Info row */
 .info-row { display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border); }
 .info-row:last-child { border-bottom: none; }
 .info-label {
@@ -321,7 +489,7 @@ tbody tr:hover { background: var(--surface2); }
   color: var(--text);
 }
 
-/* Toast - Increased font size */
+/* Toast */
 .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
 .toast {
   padding: 12px 18px;
@@ -339,7 +507,7 @@ tbody tr:hover { background: var(--surface2); }
 .toast-error { background: var(--red-bg); border: 1px solid var(--red); color: var(--red); }
 .toast-info { background: var(--accent-glow); border: 1px solid var(--accent); color: var(--accent); }
 
-/* Accessories checkboxes - Darker text */
+/* Accessories checkboxes */
 .accessories-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 @media (max-width: 768px) {
   .accessories-grid { grid-template-columns: repeat(2, 1fr); }
@@ -361,12 +529,7 @@ tbody tr:hover { background: var(--surface2); }
 .accessory-item.checked { border-color: var(--green); background: var(--green-bg); color: var(--green); }
 .accessory-item input { accent-color: var(--green); cursor: pointer; }
 
-/* Search bar */
-.search-bar { position: relative; }
-.search-bar .form-input { padding-left: 38px; }
-.search-bar svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
-
-/* Empty state - Better contrast */
+/* Empty state */
 .empty-state { padding: 60px 20px; text-align: center; color: var(--text-muted); }
 .empty-state svg { margin: 0 auto 16px; opacity: 0.4; }
 .empty-state p { font-size: 15px; font-weight: 500; margin-top: 8px; color: var(--text-dim); }
@@ -453,7 +616,7 @@ tbody tr:hover { background: var(--surface2); }
   display: inline-block;
 }
 
-/* Chart text colors - Crisp and readable */
+/* Chart text colors */
 .recharts-cartesian-axis-tick-value,
 .recharts-cartesian-axis-tick text,
 .recharts-xAxis .recharts-cartesian-axis-tick text,
@@ -486,4 +649,52 @@ tbody tr:hover { background: var(--surface2); }
   .card { padding: 16px; }
   .info-row { flex-direction: column; gap: 4px; }
   .info-label { min-width: auto; }
+  .search-bar { max-width: 100%; }
+}
+
+/* ============================================ */
+/* ADDITIONAL IMPROVEMENTS */
+/* ============================================ */
+
+/* Input group with icon */
+.input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.input-group .form-input {
+  flex: 1;
+}
+
+/* Floating label effect (optional) */
+.form-group.float-label {
+  position: relative;
+}
+.form-group.float-label .form-input {
+  padding-top: 18px;
+}
+.form-group.float-label label {
+  position: absolute;
+  top: 8px;
+  left: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Better visibility for disabled inputs */
+.form-input:disabled {
+  background: linear-gradient(135deg, var(--surface2) 0%, var(--surface) 100%);
+  border-style: dashed;
+}
+
+/* Input animation on hover */
+@keyframes subtleGlow {
+  0% { box-shadow: 0 0 0 0 var(--rose-glow); }
+  100% { box-shadow: 0 0 0 3px var(--rose-glow); }
+}
+
+.search-bar .form-input:hover {
+  animation: subtleGlow 0.3s ease;
 }

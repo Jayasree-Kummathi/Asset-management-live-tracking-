@@ -60,10 +60,8 @@ const normalizeAllocation = (a) => ({
   deliveryMethod:  a.delivery_method  || 'hand',
   deliveryAddress: a.delivery_address || '',
   notes:           a.notes            || '',
-  // ── FIX: map prepared_by snake_case → camelCase ──
   preparedBy:      a.prepared_by      || '',
   allocatedBy:     a.allocated_by     || a.prepared_by || '',
-  // ── FIX: keep damage photos raw string for parsing in UI ──
   damagePhotos:    a.damage_photos    || '[]',
 });
 
@@ -114,8 +112,8 @@ export function AppProvider({ children }) {
     try {
       setLoading(true);
       const [assetsRes, allocsRes, repairsRes, scrapsRes, statsRes] = await Promise.all([
-       apiFetch('/assets?limit=10000'),
-       apiFetch('/allocations?limit=10000'),
+        apiFetch('/assets?limit=10000'),
+        apiFetch('/allocations?limit=10000'),
         apiFetch('/repairs'),
         apiFetch('/scraps'),
         apiFetch('/assets/stats'),
@@ -172,7 +170,6 @@ export function AppProvider({ children }) {
   };
 
   // ── Allocate Asset ────────────────────────────────────────────────────────
-  // FIX: forwards prepared_by, damage_photos array properly
   const allocateAsset = async (assetId, formData) => {
     try {
       await apiFetch('/allocations', {
@@ -194,9 +191,7 @@ export function AppProvider({ children }) {
           delivery_method:  formData.deliveryMethod   || 'hand',
           delivery_address: formData.deliveryAddress  || '',
           accessoryDetails: formData.accessoryDetails || [],
-          // FIX: always send prepared_by
           prepared_by:      formData.prepared_by || formData.preparedBy || '',
-          // FIX: damage_photos — accept both JSON string and array
           damage_photos:    Array.isArray(formData.damage_photos)
                               ? JSON.stringify(formData.damage_photos)
                               : (formData.damage_photos || '[]'),
@@ -211,23 +206,25 @@ export function AppProvider({ children }) {
   };
 
   // ── Receive Asset ─────────────────────────────────────────────────────────
-  // FIX: added returnPhotos parameter
+  // FIX: correct parameter list + returned_accessories now sent in body
   const receiveAsset = async (
     allocationId,
     assetId,
     condition,
-    damageDesc   = '',
-    extraCCs     = [],
-    returnPhotos = [],   // ← NEW: array of base64 strings from ReceiveLaptop
+    damageDesc          = '',
+    extraCCs            = [],
+    returnPhotos        = [],
+    returnedAccessories = [],   // ← FIXED: simple param, no destructuring syntax
   ) => {
     try {
       await apiFetch(`/allocations/${allocationId}/receive`, {
         method: 'PUT',
         body: JSON.stringify({
           condition,
-          damage_description: damageDesc,
-          extra_ccs:          extraCCs,
-          return_photos:      returnPhotos,  // ← sent to backend → forwarded in email
+          damage_description:   damageDesc,
+          extra_ccs:            extraCCs,
+          return_photos:        returnPhotos,
+          returned_accessories: returnedAccessories,  // ← FIXED: now actually sent
         }),
       });
       showToast('Laptop received and processed');
@@ -239,7 +236,6 @@ export function AppProvider({ children }) {
   };
 
   // ── Swap Asset ────────────────────────────────────────────────────────────
-  // FIX: forwards issue_images and prepared_by
   const swapAsset = async (allocationDbId, oldAssetId, newAssetId, swapData) => {
     try {
       await apiFetch(`/allocations/${allocationDbId}/swap`, {
@@ -251,7 +247,6 @@ export function AppProvider({ children }) {
           old_condition:     swapData.oldCondition,
           extra_ccs:         swapData.extra_ccs  || [],
           prepared_by:       swapData.preparedBy || '',
-          // FIX: issue images from swap form
           issue_images:      swapData.issueImages || [],
         }),
       });

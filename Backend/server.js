@@ -9,6 +9,7 @@ const fs           = require('fs');
 const errorHandler = require('./middleware/error');
 const teamMembersRoutes = require('./routes/teamMembers');
 const { startReminderJob } = require('./utils/reminderJob');
+const settingsRoutes = require('./routes/settingsRoutes');
 
 // ─── DB Init ────────────────────────────────────────────────────────────────
 require('./config/db');
@@ -58,7 +59,7 @@ app.use('/api/employees', require('./routes/employeeRoutes'));
 // ✅ FIXED ACCESS CONTROL ROUTE
 app.use('/api/access-control', require('./routes/accessControl'));
 app.use('/api/chatbot',        require('./routes/chatbot'));     
-
+app.use('/api/settings', settingsRoutes);
 // ─── Health check ───────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({

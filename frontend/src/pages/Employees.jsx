@@ -30,7 +30,7 @@ const PRESET_PORTALS = [
 ];
 
 const BLOOD_GROUPS = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
-const LEVELS       = ['L1','L2','L3','L4','L5','L6','Manager','Senior Manager','Director','VP','S1 G1','S1 G2','S2 G1','S2 G2','S3'];
+const LEVELS       = ['L1','L2','L3','L4','L5','L6','Manager','Senior Manager','Director','VP','S1 G1','S1 G2','S2 G1','S2 G2','S3','S4'];
 
 const EMPTY_FORM = {
   emp_id: '', emp_name: '', doj: '', level: '', designation: '', location: '',
@@ -1799,7 +1799,7 @@ function SupportContactsPage({ onBack, isAdmin }) {
 export default function Employees() {
   const { user }   = useAuth();
   const location   = useLocation();
-  const isAdmin    = user?.role==='admin'||user?.role==='it_staff';
+  const isAdmin = user?.role==='admin'||user?.role==='it_staff'||user?.role==='superadmin';
 
   const [employees,       setEmployees]       = useState([]);
   const [loading,         setLoading]         = useState(true);

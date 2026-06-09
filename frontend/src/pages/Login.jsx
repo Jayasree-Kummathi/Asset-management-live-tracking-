@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const BG_IMAGE =
-  'https://as1.ftcdn.net/v2/jpg/02/92/90/56/1000_F_292905667_yFUJNJPngYeRNlrRL4hApHWxuYyRY4kN.jpg';
+import BG_IMAGE from '../assets/home.png';
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const CSS = `
@@ -23,7 +21,6 @@ const CSS = `
   font-family: 'DM Sans', sans-serif;
 }
 
-/* ── Background image — full bleed, clearly visible ── */
 .lp-bg {
   position: fixed;
   inset: 0;
@@ -34,7 +31,6 @@ const CSS = `
   z-index: 0;
 }
 
-/* ── Overlay — light enough to let image show through ── */
 .lp-overlay {
   position: fixed;
   inset: 0;
@@ -47,7 +43,6 @@ const CSS = `
   z-index: 1;
 }
 
-/* ── Glass card ── */
 .lp-card {
   position: relative;
   z-index: 2;
@@ -64,7 +59,15 @@ const CSS = `
     inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-/* ── Secured badge ── */
+/* superadmin card gets a purple tint border */
+.lp-card.is-superadmin {
+  border-color: rgba(167, 139, 250, 0.45);
+  box-shadow:
+    0 48px 96px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(167, 139, 250, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
 .lp-badge {
   position: absolute;
   top: 20px;
@@ -82,6 +85,13 @@ const CSS = `
   letter-spacing: 0.6px;
 }
 
+/* superadmin badge — purple */
+.lp-badge.is-superadmin {
+  background: rgba(124, 58, 237, 0.18);
+  border-color: rgba(167, 139, 250, 0.4);
+  color: rgba(196, 181, 253, 0.95);
+}
+
 .lp-pulse {
   width: 6px;
   height: 6px;
@@ -90,12 +100,15 @@ const CSS = `
   animation: lp-blink 2s ease-in-out infinite;
 }
 
+.lp-pulse.is-superadmin {
+  background: #a78bfa;
+}
+
 @keyframes lp-blink {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.3; transform: scale(0.85); }
 }
 
-/* ── Brand ── */
 .lp-brand {
   display: flex;
   align-items: center;
@@ -116,6 +129,12 @@ const CSS = `
   flex-shrink: 0;
 }
 
+/* superadmin icon — purple gradient */
+.lp-brand-icon.is-superadmin {
+  background: linear-gradient(145deg, #7c3aed, #4c1d95);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.55);
+}
+
 .lp-brand-name {
   font-family: 'Fraunces', serif;
   font-size: 22px;
@@ -125,7 +144,6 @@ const CSS = `
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* ── Headings ── */
 .lp-heading {
   font-family: 'Fraunces', serif;
   font-size: 31px;
@@ -146,14 +164,39 @@ const CSS = `
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
-/* ── Fields ── */
+/* superadmin role banner shown below subtitle */
+.lp-role-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: -16px 0 20px;
+  padding: 8px 16px;
+  background: rgba(124, 58, 237, 0.12);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(196, 181, 253, 0.95);
+  letter-spacing: 0.4px;
+}
+
+.lp-role-banner-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #a78bfa;
+  flex-shrink: 0;
+  animation: lp-blink 2s ease-in-out infinite;
+}
+
 .lp-field { margin-bottom: 13px; }
 
 .lp-label {
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(19, 1, 1, 0.86);
   text-transform: uppercase;
   letter-spacing: 0.7px;
   margin-bottom: 6px;
@@ -180,6 +223,12 @@ const CSS = `
   border-color: rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.16);
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+/* superadmin input focus — purple glow */
+.is-superadmin .lp-input:focus {
+  border-color: rgba(167, 139, 250, 0.6);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
 }
 
 .lp-eye {
@@ -213,7 +262,6 @@ const CSS = `
 }
 .lp-forgot:hover { color: #fff; }
 
-/* ── Error ── */
 .lp-error {
   background: rgba(220, 60, 60, 0.15);
   border: 1px solid rgba(220, 60, 60, 0.32);
@@ -225,7 +273,6 @@ const CSS = `
   text-align: center;
 }
 
-/* ── Submit button ── */
 .lp-btn {
   width: 100%;
   padding: 14px;
@@ -245,6 +292,12 @@ const CSS = `
   margin-bottom: 22px;
 }
 
+/* superadmin button — purple */
+.lp-btn.is-superadmin {
+  background: linear-gradient(135deg, #7c3aed, #4c1d95);
+  box-shadow: 0 8px 26px rgba(124, 58, 237, 0.55);
+}
+
 .lp-btn::after {
   content: '';
   position: absolute;
@@ -257,10 +310,12 @@ const CSS = `
   transform: translateY(-2px);
   box-shadow: 0 14px 34px rgba(12, 80, 50, 0.70);
 }
+.lp-btn.is-superadmin:hover:not(:disabled) {
+  box-shadow: 0 14px 34px rgba(124, 58, 237, 0.70);
+}
 .lp-btn:active:not(:disabled) { transform: translateY(0); }
 .lp-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-/* ── Spinner ── */
 .lp-spinner {
   width: 18px;
   height: 18px;
@@ -272,7 +327,6 @@ const CSS = `
 }
 @keyframes lp-spin { to { transform: rotate(360deg); } }
 
-/* ── Divider ── */
 .lp-divider {
   display: flex;
   align-items: center;
@@ -282,24 +336,6 @@ const CSS = `
 .lp-divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.15); }
 .lp-divider-text { font-size: 11px; color: rgba(255,255,255,0.35); white-space: nowrap; }
 
-/* ── Hint ── */
-.lp-hint {
-  text-align: center;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.40);
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 11px;
-  padding: 10px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  line-height: 1.6;
-}
-.lp-hint code {
-  color: rgba(100, 225, 160, 0.80);
-  font-family: monospace;
-  font-size: 12px;
-}
-
-/* ── Responsive ── */
 @media (max-width: 480px) {
   .lp-card    { padding: 38px 24px 32px; }
   .lp-heading { font-size: 26px; }
@@ -311,10 +347,13 @@ export default function Login() {
   const { login } = useAuth();
   const navigate  = useNavigate();
 
-  const [form,     setForm]     = useState({ email: 'admin@company.com', password: 'admin123' });
+  const [form,     setForm]     = useState({ email: '', password: '' });
   const [showPass, setShowPass] = useState(false);
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
+
+  // ── Detect superadmin email as user types ─────────────────────────────────
+  const isSuperAdmin = form.email.toLowerCase().includes('superadmin');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -325,6 +364,7 @@ export default function Login() {
       if (success) {
         const raw  = localStorage.getItem('user');
         const user = raw ? JSON.parse(raw) : null;
+        // superadmin and admin/it_staff all go to /dashboard
         navigate(user?.role === 'employee' ? '/my-dashboard' : '/dashboard', { replace: true });
       }
     } catch (err) {
@@ -340,36 +380,54 @@ export default function Login() {
 
       <div className="lp-root">
 
-        {/* ── Background image — clearly visible ── */}
+        {/* Background image */}
         <img className="lp-bg" src={BG_IMAGE} alt="" aria-hidden="true" />
 
-        {/* ── Lighter overlay — lets image show through ── */}
+        {/* Overlay */}
         <div className="lp-overlay" />
 
-        {/* ── Glassmorphism card ── */}
-        <div className="lp-card">
+        {/* Card — purple tint when superadmin email detected */}
+        <div className={`lp-card ${isSuperAdmin ? 'is-superadmin' : ''}`}>
 
-          {/* Secured badge */}
-          <div className="lp-badge">
-            <div className="lp-pulse" />
-            SECURED
+          {/* Badge — changes colour for superadmin */}
+          <div className={`lp-badge ${isSuperAdmin ? 'is-superadmin' : ''}`}>
+            <div className={`lp-pulse ${isSuperAdmin ? 'is-superadmin' : ''}`} />
+            {isSuperAdmin ? 'SUPER ADMIN' : 'SECURED'}
           </div>
 
-          {/* Brand */}
+          {/* Brand icon — purple for superadmin */}
           <div className="lp-brand">
-            <div className="lp-brand-icon">
-              <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-                <rect x="2"  y="2"  width="7" height="7" rx="1.5" fill="#fff" />
-                <rect x="11" y="2"  width="7" height="7" rx="1.5" fill="#fff" opacity=".75" />
-                <rect x="2"  y="11" width="7" height="7" rx="1.5" fill="#fff" opacity=".75" />
-                <rect x="11" y="11" width="7" height="7" rx="1.5" fill="#fff" opacity=".5"  />
-              </svg>
+            <div className={`lp-brand-icon ${isSuperAdmin ? 'is-superadmin' : ''}`}>
+              {isSuperAdmin ? (
+                /* Crown / globe icon for superadmin */
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="1.8" opacity="0.7"/>
+                  <path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" stroke="#fff" strokeWidth="1.8" opacity="0.9"/>
+                </svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
+                  <rect x="2"  y="2"  width="7" height="7" rx="1.5" fill="#fff" />
+                  <rect x="11" y="2"  width="7" height="7" rx="1.5" fill="#fff" opacity=".75" />
+                  <rect x="2"  y="11" width="7" height="7" rx="1.5" fill="#fff" opacity=".75" />
+                  <rect x="11" y="11" width="7" height="7" rx="1.5" fill="#fff" opacity=".5"  />
+                </svg>
+              )}
             </div>
             <span className="lp-brand-name">AssetOps</span>
           </div>
 
-          <h1 className="lp-heading">Welcome Back</h1>
-          <p className="lp-sub">Sign in to Mindteck Asset Management</p>
+          <h1 className="lp-heading">
+            {isSuperAdmin ? 'Super Admin' : 'Sign in'}
+          </h1>
+          <p className="lp-sub">Mindteck Asset Management</p>
+
+          {/* Role banner — only visible for superadmin */}
+          {isSuperAdmin && (
+            <div className="lp-role-banner">
+              <div className="lp-role-banner-dot" />
+              🌐 Global Access — All 18 Countries
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
 
@@ -380,9 +438,10 @@ export default function Login() {
                 <input
                   className="lp-input"
                   type="email"
-                  placeholder="admin@company.com"
+                  placeholder="your@email.com"
                   value={form.email}
                   required
+                  autoComplete="email"
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 />
               </div>
@@ -399,6 +458,7 @@ export default function Login() {
                   value={form.password}
                   required
                   style={{ paddingRight: 42 }}
+                  autoComplete="current-password"
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 />
                 <button
@@ -426,8 +486,17 @@ export default function Login() {
 
             {error && <div className="lp-error">{error}</div>}
 
-            <button type="submit" className="lp-btn" disabled={loading}>
-              {loading ? <div className="lp-spinner" /> : 'Sign In →'}
+            <button
+              type="submit"
+              className={`lp-btn ${isSuperAdmin ? 'is-superadmin' : ''}`}
+              disabled={loading}
+            >
+              {loading
+                ? <div className="lp-spinner" />
+                : isSuperAdmin
+                  ? '🌐 Sign In as Super Admin →'
+                  : 'Sign In →'
+              }
             </button>
 
           </form>
@@ -437,7 +506,6 @@ export default function Login() {
             <span className="lp-divider-text">Mindteck IT · AssetOps v2.0</span>
             <div className="lp-divider-line" />
           </div>
-
 
         </div>
       </div>
